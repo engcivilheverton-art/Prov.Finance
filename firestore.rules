@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Perfil do usuário: nome obrigatório, idade opcional e período dos gráficos válido.
+    function perfilValido(d) {
+      return d.keys().hasOnly(['nome', 'idade', 'anoIni', 'mesIni', 'anoFim', 'mesFim', 'atualizadoEm'])
+        && d.nome is string && d.nome.size() > 0 && d.nome.size() <= 120
+        && (!('idade' in d) || (d.idade is int && d.idade >= 0 && d.idade <= 120))
+        && d.anoIni is int && d.anoIni >= 2022 && d.anoIni <= 2030
+        && d.anoFim is int && d.anoFim >= 2022 && d.anoFim <= 2030
+        && d.mesIni is int && d.mesIni >= 1 && d.mesIni <= 12
+        && d.mesFim is int && d.mesFim >= 1 && d.mesFim <= 12
+        && (d.anoIni * 12 + d.mesIni) <= (d.anoFim * 12 + d.mesFim);
+    }
+
+    // Perfil (validado) — só o próprio dono.
+    match /users/{uid}/perfil/{docId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && docId == 'dados' && perfilValido(request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+
+    // Demais dados financeiros (cartões, faturas, dívidas, rendas, contas fixas...) — só o próprio dono.
+    match /users/{uid}/{colecao}/{docId=**} {
+      allow read, write: if isOwner(uid) && colecao != 'perfil';
+    }
+
+    // Tudo o mais é negado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
