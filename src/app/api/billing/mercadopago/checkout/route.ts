@@ -47,6 +47,15 @@ export async function POST(request: Request) {
 
     const config = PLANOS_ASSINATURA[plano as PlanoAssinatura];
 
+    const payerEmail = process.env.VERCEL_ENV === 'preview'
+      ? process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim()
+      : email;
+    if (!payerEmail) {
+      return NextResponse.json({
+        error: 'Configure no Preview o e-mail da conta compradora de teste do Mercado Pago.',
+      }, { status: 503 });
+    }
+
     if (assinaturaAtual?.status === 'pending' && assinaturaAtual.mercadoPagoSubscriptionId) {
       const atual = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(String(assinaturaAtual.mercadoPagoSubscriptionId))}`, {
         headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
@@ -72,7 +81,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         reason: config.nome,
         external_reference: uid,
-        payer_email: email,
+        payer_email: payerEmail,
         auto_recurring: {
           frequency: config.frequencia,
           frequency_type: config.tipoFrequencia,

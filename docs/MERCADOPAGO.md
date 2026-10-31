@@ -31,6 +31,8 @@ Para esta integração sem plano associado, ative os eventos **Vinculação de u
 
 Configure primeiro o ambiente de teste e depois a produção. No Vercel, mantenha valores separados: `MERCADOPAGO_ACCESS_TOKEN` de teste apenas em **Preview** e o token de produção apenas em **Production**. Faça o mesmo para `MERCADOPAGO_WEBHOOK_SECRET`. Para que os retornos e notificações do Preview apontem para o deployment de teste, configure `NEXT_PUBLIC_APP_URL` com a URL estável da branch nesse ambiente. O Preview também precisa das configurações Firebase e das credenciais Firebase Admin necessárias ao servidor; não rode testes de checkout até essas variáveis estarem configuradas.
 
+No Preview, cadastre também `MERCADOPAGO_TEST_PAYER_EMAIL` com o e-mail da conta compradora de teste do Mercado Pago. Não use o e-mail real da conta Firebase nesse campo: o Access Token de teste representa um vendedor de teste, e o Mercado Pago exige que vendedor e comprador sejam ambos usuários de teste. Em Produção, a API usa o e-mail do usuário autenticado.
+
 ## Firestore
 
 Publique as regras atualizadas de `firestore.rules` no projeto Firebase `provfinance-33283`. O usuário pode ler o próprio documento `users/{uid}/assinatura/status`, mas não pode gravá-lo pelo SDK web; as atualizações vêm do backend com Firebase Admin.
