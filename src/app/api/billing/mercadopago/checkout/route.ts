@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { APP_URL, mercadoPagoConfigurado, PLANOS_ASSINATURA, type PlanoAssinatura } from '@/lib/mercadopago';
 
-export const runtime = 'nodejs';
-
 export async function POST(request: Request) {
   const authorization = request.headers.get('authorization');
   const idToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';

@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { mercadoPagoConfigurado } from '@/lib/mercadopago';
 
-export const runtime = 'nodejs';
-
 function assinaturaValida(signature: string, requestId: string, dataId: string, secret: string) {
   const parts = Object.fromEntries(signature.split(',').map((item) => {
     const separator = item.indexOf('=');
