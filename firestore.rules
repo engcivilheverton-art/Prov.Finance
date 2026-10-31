@@ -26,9 +26,15 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
+    // Assinatura: o próprio usuário pode consultar o status, mas apenas o backend confiável atualiza.
+    match /users/{uid}/assinatura/{docId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
     // Demais dados financeiros (cartões, faturas, dívidas, rendas, contas fixas...) — só o próprio dono.
     match /users/{uid}/{colecao}/{docId=**} {
-      allow read, write: if isOwner(uid) && colecao != 'perfil';
+      allow read, write: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura';
     }
 
     // Tudo o mais é negado.
