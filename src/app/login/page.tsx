@@ -40,7 +40,7 @@ export default function LoginPage() {
       setEnviando(true);
       setErro('');
       try {
-        const token = await user!.getIdToken();
+        const token = await user!.getIdToken(true);
         const resposta = await fetch('/api/billing/mercadopago/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

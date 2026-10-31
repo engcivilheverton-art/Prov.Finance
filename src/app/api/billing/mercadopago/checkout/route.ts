@@ -15,7 +15,14 @@ export async function POST(request: Request) {
     uid = user.uid;
     if (!user.email) return NextResponse.json({ error: 'Sua conta precisa ter um e-mail válido.' }, { status: 400 });
     email = user.email;
-  } catch {
+  } catch (error) {
+    const detalhe = error && typeof error === 'object'
+      ? {
+          name: 'name' in error && typeof error.name === 'string' ? error.name : 'UnknownError',
+          code: 'code' in error && typeof error.code === 'string' ? error.code : 'unknown',
+        }
+      : { name: 'UnknownError', code: 'unknown' };
+    console.error('Falha ao validar sessão Firebase para checkout', detalhe);
     return NextResponse.json({ error: 'Sessão inválida. Entre novamente.' }, { status: 401 });
   }
 
