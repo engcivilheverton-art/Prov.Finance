@@ -27,7 +27,9 @@ No painel de desenvolvedores, abra a aplicação que possui o Access Token e con
 https://prov-financeiro.vercel.app/api/billing/mercadopago/webhook
 ```
 
-Ative o evento **Planos e assinaturas → Vinculação de uma assinatura (`subscription_preapproval`)** e copie a assinatura secreta para `MERCADOPAGO_WEBHOOK_SECRET`. Configure primeiro a URL e as credenciais de teste; depois repita com as credenciais e configurações de produção. A aplicação valida o HMAC (`x-signature`) e consulta a assinatura diretamente na API antes de gravar o status.
+Para esta integração sem plano associado, ative os eventos **Vinculação de uma assinatura (`subscription_preapproval`)**, **Pagamento recorrente de uma assinatura (`subscription_authorized_payment`)** e **Pagamentos (`payment`)**. O endpoint consulta a API do Mercado Pago para resolver a assinatura e grava seu status no Firestore somente depois de validar a assinatura HMAC (`x-signature`).
+
+Configure primeiro o ambiente de teste e depois a produção. No Vercel, mantenha valores separados: `MERCADOPAGO_ACCESS_TOKEN` de teste apenas em **Preview** e o token de produção apenas em **Production**. Faça o mesmo para `MERCADOPAGO_WEBHOOK_SECRET`. Para que os retornos e notificações do Preview apontem para o deployment de teste, configure `NEXT_PUBLIC_APP_URL` com a URL estável da branch nesse ambiente. O Preview também precisa das configurações Firebase e das credenciais Firebase Admin necessárias ao servidor; não rode testes de checkout até essas variáveis estarem configuradas.
 
 ## Firestore
 
