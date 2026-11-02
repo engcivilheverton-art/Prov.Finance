@@ -1,53 +1,44 @@
 # Configuração do Mercado Pago
 
-O fluxo de assinatura usa a API de Assinaturas do Mercado Pago. O app autentica o usuário com Firebase, cria o checkout no servidor e só considera o status recebido após consultar novamente a API do Mercado Pago por um webhook assinado.
+O aplicativo cria assinaturas a partir do backend em `POST /api/billing/checkout`, com preço definido em `src/lib/planos.ts`. O Mercado Pago hospeda o checkout; o app não confia no retorno do navegador para conceder Premium.
 
-## Variáveis no Vercel
+## Variáveis na Vercel
 
-No projeto Vercel `prov-financeiro`, em **Settings → Environment Variables**, configure as variáveis de produção:
+No projeto `prov-financeiro`, configure Preview e Production separadamente:
 
-| Variável | Tipo | Valor |
+| Variável | Preview | Production |
 | --- | --- | --- |
-| `MERCADOPAGO_ACCESS_TOKEN` | Secreta | O Access Token de produção já está cadastrado no Vercel |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Secreta | Assinatura secreta exibida na configuração de Webhooks do Mercado Pago |
-| `FIREBASE_ADMIN_PROJECT_ID` | Servidor | `provfinance-33283` |
-| `FIREBASE_ADMIN_CLIENT_EMAIL` | Servidor | E-mail da conta de serviço Firebase/GCP |
-| `FIREBASE_ADMIN_PRIVATE_KEY` | Secreta | Chave privada PEM dessa conta de serviço; mantenha as quebras de linha ou use `\n` |
-| `NEXT_PUBLIC_APP_URL` | Pública | `https://prov-financeiro.vercel.app` |
+| `MERCADOPAGO_ACCESS_TOKEN` | Credencial de teste do vendedor de teste | Credencial real da aplicação |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Segredo HMAC do webhook de teste | Segredo HMAC do webhook de produção |
+| `NEXT_PUBLIC_APP_URL` | `https://prov-financeiro-preview.vercel.app` | `https://prov-financeiro.vercel.app` |
+| `MERCADOPAGO_TEST_PAYER_EMAIL` | E-mail do comprador de teste (opcional) | Não configurar |
 
-As três variáveis Firebase Admin e as duas variáveis Mercado Pago nunca devem começar com `NEXT_PUBLIC_`. Não envie os valores secretos por chat, GitHub ou arquivos versionados. Para Firebase Admin, use uma conta de serviço dedicada, com o menor conjunto de permissões necessário para validar tokens e atualizar os documentos de assinatura no Firestore. Para testar em Preview, configure credenciais de teste separadas e também os parâmetros públicos do Firebase nesse ambiente; não reutilize as chaves de produção sem decidir que o Preview usará o projeto de produção.
+O backend também exige no ambiente de produção Firebase `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL` e `FIREBASE_ADMIN_PRIVATE_KEY`. Nunca coloque tokens, chaves privadas ou segredo HMAC em `NEXT_PUBLIC_*`, no GitHub ou na landing.
 
-Depois de alterar variáveis, gere um novo deployment do app.
+Depois de alterar variáveis, faça um novo deployment desse ambiente.
 
-## Webhook no Mercado Pago
+## Webhook
 
-No painel de desenvolvedores, abra a aplicação que possui o Access Token e configure a URL:
+Configure a URL pública do ambiente correspondente:
 
 ```text
-https://prov-financeiro.vercel.app/api/billing/mercadopago/webhook
+Preview:    https://prov-financeiro-preview.vercel.app/api/webhooks/mercadopago
+Production: https://prov-financeiro.vercel.app/api/webhooks/mercadopago
 ```
 
-Para esta integração sem plano associado, ative os eventos **Vinculação de uma assinatura (`subscription_preapproval`)**, **Pagamento recorrente de uma assinatura (`subscription_authorized_payment`)** e **Pagamentos (`payment`)**. O endpoint consulta a API do Mercado Pago para resolver a assinatura e grava seu status no Firestore somente depois de validar a assinatura HMAC (`x-signature`).
+Ative os eventos `subscription_preapproval` e `subscription_authorized_payment`. Copie o segredo de assinatura HMAC exibido para aquele webhook e salve no escopo correspondente de `MERCADOPAGO_WEBHOOK_SECRET`. O endpoint rejeita assinaturas inválidas e consulta o estado atual da assinatura e da última fatura à API do Mercado Pago.
 
-Configure primeiro o ambiente de teste e depois a produção. No Vercel, mantenha valores separados: `MERCADOPAGO_ACCESS_TOKEN` de teste apenas em **Preview** e o token de produção apenas em **Production**. Faça o mesmo para `MERCADOPAGO_WEBHOOK_SECRET`. Para que os retornos e notificações do Preview apontem para o deployment de teste, configure `NEXT_PUBLIC_APP_URL` com a URL estável da branch nesse ambiente. O Preview também precisa das configurações Firebase e das credenciais Firebase Admin necessárias ao servidor; não rode testes de checkout até essas variáveis estarem configuradas.
-
-No Preview, cadastre também `MERCADOPAGO_TEST_PAYER_EMAIL` com o e-mail da conta compradora de teste do Mercado Pago. Não use o e-mail real da conta Firebase nesse campo: o Access Token de teste representa um vendedor de teste, e o Mercado Pago exige que vendedor e comprador sejam ambos usuários de teste. Em Produção, a API usa o e-mail do usuário autenticado.
+Premium só é concedido quando o contrato remoto está `authorized`, corresponde ao usuário/plano/valor cadastrados e a fatura recorrente mais recente tem `payment.status=approved`. Sem fatura aprovada, com cobrança pendente/recusada, contrato pausado/cancelado ou consulta inconsistente, o acesso fica Free.
 
 ## Firestore
 
-Publique as regras atualizadas de `firestore.rules` no projeto Firebase `provfinance-33283`. O usuário pode ler o próprio documento `users/{uid}/assinatura/status`, mas não pode gravá-lo pelo SDK web; as atualizações vêm do backend com Firebase Admin.
+As alterações de assinatura são feitas no servidor com Firebase Admin SDK. O app web pode ler o documento próprio de status, mas não pode criar ou alterar a assinatura nem consultar dados de outro usuário pelas regras.
 
-Com Firebase CLI instalado e autenticado, no diretório do app:
+Antes de publicar regras, confirme o projeto Firebase alvo. Como o alias padrão local é o emulador `demo-prov-financeiro`, use `firebase deploy --only firestore:rules --project <ID_DO_PROJETO>` somente quando quiser publicar no projeto escolhido.
 
-```sh
-firebase use provfinance-33283
-firebase deploy --only firestore:rules
-```
+## Planos
 
-Também é possível colar o conteúdo de `firestore.rules` na aba **Firestore Database → Regras** e publicar pelo console Firebase.
+- Mensal: R$ 11,99 a cada mês.
+- Anual: R$ 119,88 a cada 12 meses.
 
-## Valores dos planos
-
-O valor é definido no servidor em `src/lib/mercadopago.ts` e não é aceito do navegador. O plano mensal cobra R$ 11,99 a cada mês; o anual cobra R$ 119,88 a cada 12 meses. Se os preços da landing forem alterados, atualize esse mapa e `prov-landing/lib/landing-config.ts` juntos.
-
-O retorno do checkout não concede acesso por si só. A assinatura só é marcada `authorized` quando o backend recebe um webhook válido e confirma o estado atual na API do Mercado Pago.
+Os valores e recursos centralizados estão em `src/lib/planos.ts`. A landing consulta `GET /api/billing/plans`; não mantenha um segundo catálogo de valores.
