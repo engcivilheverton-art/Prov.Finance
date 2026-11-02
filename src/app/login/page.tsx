@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [info, setInfo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [plano, setPlano] = useState<Plano | null>(null);
+  const [selecaoDoPlanoCarregada, setSelecaoDoPlanoCarregada] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,10 +27,11 @@ export default function LoginPage() {
     if (planoSelecionado === 'mensal' || planoSelecionado === 'anual') {
       setPlano(planoSelecionado);
     }
+    setSelecaoDoPlanoCarregada(true);
   }, []);
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading || !selecaoDoPlanoCarregada || !user) return;
     if (!plano) {
       router.replace('/dashboard');
       return;
@@ -60,7 +62,7 @@ export default function LoginPage() {
     }
     void abrirCheckout();
     return () => { cancelado = true; };
-  }, [loading, user, plano, router]);
+  }, [loading, user, plano, router, selecaoDoPlanoCarregada]);
 
   async function executar(acao: () => Promise<void>) {
     setErro('');
