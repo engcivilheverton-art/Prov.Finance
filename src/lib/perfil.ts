@@ -24,10 +24,7 @@ export async function salvarPerfil(uid: string, perfil: Perfil): Promise<void> {
   await setDoc(refPerfil(uid), dados);
 }
 
-export const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
+export { MESES } from '@/lib/datas';
 
 /** Quantidade de meses do período (inclusive). 0 se o início for depois do fim. */
 export function mesesNoPeriodo(p: Pick<Perfil, 'anoIni' | 'mesIni' | 'anoFim' | 'mesFim'>): number {

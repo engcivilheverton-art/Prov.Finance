@@ -54,15 +54,16 @@ export default function PerfilPage() {
     }
   }
 
-  if (carregando) return <p style={{ color: 'var(--texto-suave)' }}>Carregando…</p>;
+  if (carregando) return <p style={{ color: 'var(--suave)' }}>Carregando…</p>;
 
   return (
     <form onSubmit={aoSalvar} style={{ maxWidth: 640 }}>
-      <div className="rotulo">Configuração</div>
-      <h1 className="titulo">Meu perfil</h1>
+      <div className="pagina-cab">
+        <div><div className="sub">Configuração</div><h1>Meu perfil</h1></div>
+      </div>
 
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <div className="card-cab">Dados pessoais</div>
+        <div className="card-cab"><h2>Dados pessoais</h2></div>
         <div className="card-corpo grade-2">
           <div className="campo col-total">
             <label htmlFor="nome">Nome</label>
@@ -76,7 +77,7 @@ export default function PerfilPage() {
       </div>
 
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <div className="card-cab">Período de análise dos gráficos</div>
+        <div className="card-cab"><h2>Período de análise dos gráficos</h2></div>
         <div className="card-corpo">
           <div className="grade-2">
             <div className="campo">

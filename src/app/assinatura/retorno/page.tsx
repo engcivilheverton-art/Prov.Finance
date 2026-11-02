@@ -1,51 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-
-type Assinatura = { status?: string; plano?: string };
+import { useAssinatura } from '@/lib/use-assinatura';
 
 export default function RetornoAssinaturaPage() {
   const { user, loading } = useAuth();
-  const [assinatura, setAssinatura] = useState<Assinatura | null>(null);
-  const [erro, setErro] = useState(false);
-
+  const assinatura = useAssinatura();
+  const atualizarAssinatura = assinatura.atualizar;
+  const [checando, setChecando] = useState(true);
   useEffect(() => {
-    if (!user) return;
-    return onSnapshot(
-      doc(db, 'users', user.uid, 'assinatura', 'status'),
-      (snapshot) => { setAssinatura(snapshot.exists() ? snapshot.data() as Assinatura : null); setErro(false); },
-      () => setErro(true),
-    );
-  }, [user]);
+    const timer = window.setTimeout(() => { setChecando(false); void atualizarAssinatura(); }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [atualizarAssinatura]);
 
-  if (loading) return <main className="login-pagina"><p>Carregando…</p></main>;
-  if (!user) return <main className="login-pagina"><section className="card login-card"><h1>Entre na sua conta</h1><p>Faça login para consultar sua assinatura.</p><Link className="btn" href="/login">Ir para o login</Link></section></main>;
-
-  const ativa = assinatura?.status === 'authorized';
-  const titulo = ativa ? 'Assinatura confirmada' : assinatura?.status === 'paused' || assinatura?.status === 'cancelled'
-    ? 'Assinatura não está ativa' : 'Aguardando confirmação do pagamento';
-
-  return (
-    <main className="login-pagina">
-      <section className="card login-card">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="login-logo" src="/logo-prov.png" alt="PROV" />
-        <h1 style={{ textAlign: 'center' }}>{titulo}</h1>
-        {ativa ? (
-          <><p style={{ textAlign: 'center' }}>Seu plano {assinatura?.plano ?? ''} foi autorizado pelo Mercado Pago.</p><Link className="btn" href="/dashboard">Abrir o PROV</Link></>
-        ) : (
-          <>
-            <p style={{ textAlign: 'center' }}>O Mercado Pago pode levar alguns instantes para confirmar. Esta página atualiza automaticamente.</p>
-            {erro && <div className="aviso aviso-erro">Não foi possível consultar o status agora. Atualize a página em instantes.</div>}
-            <Link className="btn" href={`/login?plano=${assinatura?.plano === 'anual' ? 'anual' : 'mensal'}&modo=criar`}>Voltar ao checkout</Link>
-            <Link className="btn-link" href="/dashboard">Continuar para o app</Link>
-          </>
-        )}
-      </section>
-    </main>
-  );
+  if (loading || assinatura.carregando || checando) return <main className="login-pagina"><div className="card login-card"><h1>Conferindo sua assinatura</h1><p>Estamos consultando o status confirmado pelo Mercado Pago. Não feche esta página.</p></div></main>;
+  return <main className="login-pagina"><div className="card login-card"><h1>{assinatura.premium ? 'Premium confirmado!' : 'Estamos processando sua assinatura'}</h1><p>{assinatura.premium ? 'Seu acesso Premium está ativo.' : 'O pagamento ainda não foi confirmado. Seu acesso continua no plano gratuito; você pode voltar ao painel e consultar novamente em instantes.'}</p>{assinatura.erro && <div className="aviso aviso-alerta">{assinatura.erro}</div>}<div className="pilha"><Link className="btn" href={user ? '/dashboard' : '/login'}>Ir para o PROV.</Link><button className="btn btn-sec" type="button" onClick={() => void assinatura.atualizar()}>Consultar novamente</button></div></div></main>;
 }
