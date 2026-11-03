@@ -53,14 +53,21 @@ export async function getPreapproval(id: string): Promise<Preapproval> {
 /** Fetch the provider's latest recurring invoice; subscription authorization alone
  * does not prove that the most recent charge succeeded. */
 export async function getLatestAuthorizedInvoice(preapprovalId: string): Promise<AuthorizedInvoice | null> {
-  // The API's default page size is 20. Asking for 100 can be rejected with
-  // HTTP 400, which prevented the app from validating otherwise-authorized
-  // subscriptions.
-  const query = new URLSearchParams({ preapproval_id: preapprovalId, limit: '20', offset: '0' });
+  // Let Mercado Pago apply its default pagination. Its API reference documents
+  // filtering this search by preapproval_id and shows the default page size.
+  const query = new URLSearchParams({ preapproval_id: preapprovalId });
   const response = await fetch(`https://api.mercadopago.com/authorized_payments/search?${query}`, {
     headers: { authorization: `Bearer ${mercadoPagoAccessToken()}` }, cache: 'no-store',
   });
-  if (!response.ok) throw new Error(`Falha ao consultar as faturas da assinatura (${response.status}).`);
+  if (!response.ok) {
+    const providerError = await response.json().catch(() => ({})) as { error?: unknown; message?: unknown };
+    const diagnostic = [providerError.error, providerError.message]
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.replace(/[\r\n]/g, ' ').slice(0, 160))
+      .join(': ');
+    console.error('Mercado Pago invoice search failed:', response.status, diagnostic || 'no provider message');
+    throw new Error(`Falha ao consultar as faturas da assinatura (${response.status}).`);
+  }
   const data = await response.json() as { results?: AuthorizedInvoice[] };
   const invoices = Array.isArray(data.results) ? data.results.filter((invoice) => invoice.preapproval_id === preapprovalId) : [];
   invoices.sort((a, b) => Date.parse(b.last_modified ?? b.date_created ?? '') - Date.parse(a.last_modified ?? a.date_created ?? ''));
