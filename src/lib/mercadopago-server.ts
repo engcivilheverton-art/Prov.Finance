@@ -53,7 +53,10 @@ export async function getPreapproval(id: string): Promise<Preapproval> {
 /** Fetch the provider's latest recurring invoice; subscription authorization alone
  * does not prove that the most recent charge succeeded. */
 export async function getLatestAuthorizedInvoice(preapprovalId: string): Promise<AuthorizedInvoice | null> {
-  const query = new URLSearchParams({ preapproval_id: preapprovalId, limit: '100', offset: '0' });
+  // The API's default page size is 20. Asking for 100 can be rejected with
+  // HTTP 400, which prevented the app from validating otherwise-authorized
+  // subscriptions.
+  const query = new URLSearchParams({ preapproval_id: preapprovalId, limit: '20', offset: '0' });
   const response = await fetch(`https://api.mercadopago.com/authorized_payments/search?${query}`, {
     headers: { authorization: `Bearer ${mercadoPagoAccessToken()}` }, cache: 'no-store',
   });
