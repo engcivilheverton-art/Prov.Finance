@@ -78,7 +78,9 @@ export async function POST(request: Request) {
           reason: `PROV. ${plan.nome}`,
           external_reference: user.uid,
           payer_email: payerEmail,
-          back_url: `${appUrl}/assinatura/retorno?plano=${plan.id}`,
+          // Mercado Pago appends its own preapproval_id query parameter to
+          // back_url. Keep this URL query-free so the return URL stays valid.
+          back_url: `${appUrl}/assinatura/retorno`,
           auto_recurring: { frequency: plan.frequencia, frequency_type: plan.frequenciaTipo, transaction_amount: plan.valor, currency_id: 'BRL' },
           status: 'pending',
         }),
