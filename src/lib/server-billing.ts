@@ -156,14 +156,35 @@ export async function listFirestoreCollection(path: string): Promise<FirestorePl
 }
 
 export async function commitFirestoreDocuments(writes: { path: string; fields: Record<string, unknown>; createOnly?: boolean }[]): Promise<void> {
-  const writer = adminDb().bulkWriter();
-  writer.onWriteError((error) => error.code !== 6 && error.failedAttempts < 3);
-  const results = await Promise.allSettled(writes.map(({ path, fields, createOnly }) => {
-    const ref = adminDb().doc(path);
-    return createOnly ? writer.create(ref, fields) : writer.set(ref, fields, { merge: true });
-  }));
-  await writer.close();
-  const failures = results.filter((result) => result.status === 'rejected' && (result.reason as { code?: number | string })?.code !== 6);
-  if (failures.length) throw new Error('Não foi possível salvar os dados no Firestore.');
+  const db = adminDb();
+  const chunkSize = 400;
+  const isAlreadyExists = (error: unknown) => {
+    const code = (error as { code?: number | string } | null)?.code;
+    return code === 6 || code === 'already-exists';
+  };
+
+  for (let offset = 0; offset < writes.length; offset += chunkSize) {
+    let pending = writes.slice(offset, offset + chunkSize);
+    // A create-only collision can happen if two imports of the same file race.
+    // Re-read and retry just the documents that are still missing.
+    for (let attempt = 0; pending.length > 0 && attempt < 3; attempt++) {
+      const batch = db.batch();
+      for (const { path, fields, createOnly } of pending) {
+        const ref = db.doc(path);
+        if (createOnly) batch.create(ref, fields);
+        else batch.set(ref, fields, { merge: true });
+      }
+      try {
+        await batch.commit();
+        pending = [];
+      } catch (error) {
+        if (!pending.every((write) => write.createOnly) || !isAlreadyExists(error) || attempt === 2) {
+          throw new Error('Não foi possível salvar os dados no Firestore.');
+        }
+        const snapshots = await Promise.all(pending.map(({ path }) => db.doc(path).get()));
+        pending = pending.filter((_, index) => !snapshots[index].exists);
+      }
+    }
+  }
 }
 
