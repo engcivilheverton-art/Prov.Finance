@@ -184,3 +184,55 @@ details[open] .detalhe-seta { transform: rotate(90deg); }
   h1 { font-size: 1.55rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Gráficos e calendário (painel) */
+:root {
+  --ch-cartoes: #1e3a5f; --ch-dividas: #b7791f; --ch-fixas: #64748b; --ch-renda: #047857; --ch-neg: #c2413a;
+  --s1: #1e3a5f; --s2: #047857; --s3: #b7791f; --s4: #64748b; --s5: #7c3aed; --s6: #0e7490; --s7: #be123c; --s8: #9a3412;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ch-cartoes: #7aa2d6; --ch-dividas: #e0b84a; --ch-fixas: #94a3b8; --ch-renda: #34d399; --ch-neg: #f87171;
+    --s1: #7aa2d6; --s2: #34d399; --s3: #e0b84a; --s4: #94a3b8; --s5: #a78bfa; --s6: #22d3ee; --s7: #fb7185; --s8: #fb923c;
+  }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.seletor-mes { display: flex; align-items: center; gap: .5rem; }
+.seletor-mes-rotulo { min-width: 9.5rem; text-align: center; font-weight: 700; color: var(--ink); }
+.grade-graficos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.bloqueado { border-style: dashed; }
+.filtro { min-height: 38px; padding: .3rem .6rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); max-width: 100%; }
+.grafico { position: relative; width: 100%; min-height: 40px; }
+.grafico svg { display: block; max-width: 100%; }
+.grafico svg:focus-visible { outline: 2px solid var(--g); outline-offset: 2px; border-radius: 8px; }
+.eixo-texto { fill: var(--mut); font-size: 11px; font-variant-numeric: tabular-nums; }
+.eixo-grade { stroke: var(--line); stroke-width: 1; }
+.eixo-zero { stroke: var(--mut); stroke-width: 1; opacity: .6; }
+.coluna-ativa { fill: var(--bg); }
+.ponto { stroke: var(--card); stroke-width: 1.5; }
+.grafico-vazio { display: grid; place-items: center; color: var(--mut); font-size: .9rem; }
+.grafico-dica { position: absolute; top: 0; z-index: 2; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .5rem .7rem; font-size: .78rem; box-shadow: var(--sh); pointer-events: none; min-width: 150px; }
+.grafico-dica b { display: block; margin-bottom: .2rem; color: var(--ink); }
+.grafico-dica div { display: flex; align-items: center; gap: .4rem; color: var(--mut); }
+.grafico-dica div span { margin-left: auto; padding-left: .8rem; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.grafico-dica i, .legenda i, .rosca-lista i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.legenda { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; list-style: none; margin-top: .6rem; font-size: .8rem; color: var(--mut); }
+.legenda li { display: flex; align-items: center; gap: .4rem; }
+.rosca { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
+.rosca-rotulo { fill: var(--mut); font-size: 11px; }
+.rosca-total { fill: var(--ink); font-size: 15px; font-weight: 800; }
+.rosca-lista { list-style: none; flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: .45rem; }
+.rosca-lista li { display: flex; align-items: center; gap: .55rem; font-size: .88rem; }
+.rosca-lista .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cal-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-sem { text-align: center; font-size: .72rem; font-weight: 700; color: var(--mut); padding-bottom: .1rem; }
+.cal-dia { position: relative; min-height: 58px; padding: .3rem; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); cursor: pointer; text-align: left; display: flex; flex-direction: column; justify-content: space-between; transition: border-color .2s; }
+.cal-dia:hover { border-color: var(--g); }
+.cal-dia:focus-visible { outline: 2px solid var(--g); outline-offset: 1px; }
+.cal-dia.hoje .cal-n { color: var(--g); font-weight: 800; text-decoration: underline; }
+.cal-dia.sel { border-color: var(--g); box-shadow: 0 0 0 2px var(--g); }
+.cal-n { font-size: .78rem; font-weight: 600; }
+.cal-v { font-size: .78rem; font-weight: 800; align-self: flex-end; font-variant-numeric: tabular-nums; }
+.cal-vazio { min-height: 0; }
+@media (max-width: 900px) { .grade-graficos { grid-template-columns: 1fr; } }
+@media (max-width: 767px) { .cal-grade { gap: 3px; } .cal-dia { min-height: 48px; padding: .2rem; border-radius: 9px; } .cal-n, .cal-v { font-size: .68rem; } .seletor-mes-rotulo { min-width: 7.5rem; } }

@@ -7,7 +7,7 @@ export const PLANOS: Record<PlanoId, { id: PlanoId; nome: string; valor: number;
 
 export const RECURSOS = {
   free: ['Painel financeiro básico', 'Rendas, dívidas e contas fixas', 'Cartões e faturas', 'Cadastro e edição manual de faturas'],
-  premium: ['Todos os recursos Free', 'Importação de faturas por CSV', 'Gráficos e análises financeiras completas (em desenvolvimento)'],
+  premium: ['Todos os recursos Free', 'Importação de faturas por CSV', 'Gráficos e análises financeiras', 'Calendário de gastos por dia'],
 } as const;
 
 export function planoValido(valor: unknown): valor is PlanoId {

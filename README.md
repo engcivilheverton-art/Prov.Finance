@@ -27,7 +27,7 @@ Os valores e a lista de recursos têm uma única fonte no backend, em `src/lib/p
 - Free: painel básico, rendas, contas fixas, dívidas, cartões, faturas manuais, perfil e configurações.
 - Premium mensal: R$ 11,99/mês.
 - Premium anual: R$ 119,88 a cada 12 meses.
-- Premium inclui importação CSV. Gráficos e análises completas ainda estão em desenvolvimento e não são apresentados como recurso pronto.
+- Premium inclui importação CSV e, no painel, os gráficos (despesas e renda por mês, faturas, renda, balanço, gastos por categoria com filtro por cartão) e o calendário de gastos por dia. O painel básico (resumo do mês e próximas faturas) continua no Free. O bloqueio dos gráficos é de interface e depende de `useAssinatura` (status confirmado pelo backend); os dados continuam sendo do próprio usuário. Para mudar o que é Premium, ajuste `RECURSOS` em `src/lib/planos.ts` e o condicional em `src/app/(app)/dashboard/page.tsx`.
 
 Usuários sem `users/{uid}/assinatura/status` são Free. Os dados financeiros existentes não precisam ser migrados nem apagados. As regras do Firestore permitem faturas manuais e impedem o cliente de alterar a assinatura ou gravar lançamentos CSV. O endpoint de importação revalida a assinatura no Mercado Pago.
 
