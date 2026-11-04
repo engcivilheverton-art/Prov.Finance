@@ -1,6 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan } from '@/lib/mercadopago-server';
+import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan, MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
 import { commitFirestoreDocuments, getFirestoreDocument, listFirestoreCollection, readSubscription, verifyFirebaseIdToken, writeSubscription } from '@/lib/server-billing';
+
+// A stalled dependency should not consume Vercel's five-minute function limit.
+export const maxDuration = 60;
 
 type ItemCsv = { data: string; descricao: string; parcela?: string; valor: number; programado?: boolean };
 function hash(texto: string): string {
@@ -23,34 +27,57 @@ function totalGastos(itens: Record<string, unknown>[]) {
   return Math.round((total + Number.EPSILON) * 100) / 100;
 }
 
-async function confirmarPremium(uid: string) {
-  const assinatura = await readSubscription(uid);
+type Etapa = <T>(nome: string, operacao: () => Promise<T>) => Promise<T>;
+
+async function confirmarPremium(uid: string, etapa: Etapa) {
+  const assinatura = await etapa('firestore_read_subscription', () => readSubscription(uid));
   if (!assinatura?.preapprovalId) return false;
-  const remote = await getPreapproval(assinatura.preapprovalId);
+  const remote = await etapa('mercadopago_read_preapproval', () => getPreapproval(assinatura.preapprovalId!));
   if (remote.id !== assinatura.preapprovalId || remote.external_reference !== uid || !matchesPlan(remote, assinatura.plan)) return false;
   if (remote.status !== 'authorized') {
-    await writeSubscription(uid, { ...assinatura, status: remote.status ?? 'unknown', providerVersion: remote.version });
+    await etapa('firestore_update_subscription_status', () => writeSubscription(uid, { ...assinatura, status: remote.status ?? 'unknown', providerVersion: remote.version }));
     return false;
   }
-  const latestInvoice = await getLatestAuthorizedInvoice(assinatura.preapprovalId);
+  const latestInvoice = await etapa('mercadopago_read_authorized_payment', () => getLatestAuthorizedInvoice(assinatura.preapprovalId!));
   if (!hasConfirmedLatestInvoice(latestInvoice)) return false;
   if (assinatura.status !== remote.status || assinatura.providerVersion !== remote.version) {
-    await writeSubscription(uid, { ...assinatura, status: remote.status, providerVersion: remote.version });
+    await etapa('firestore_confirm_subscription', () => writeSubscription(uid, { ...assinatura, status: remote.status!, providerVersion: remote.version }));
   }
   return true;
 }
 
 export async function POST(request: Request) {
+  const requestId = randomUUID();
+  const requestStartedAt = Date.now();
+  let currentStage = 'request_received';
+  const etapa: Etapa = async (nome, operacao) => {
+    currentStage = nome;
+    const startedAt = Date.now();
+    console.info('CSV import stage started', { requestId, stage: nome });
+    try {
+      const result = await operacao();
+      console.info('CSV import stage completed', { requestId, stage: nome, durationMs: Date.now() - startedAt });
+      return result;
+    } catch (error) {
+      console.error('CSV import stage failed', {
+        requestId,
+        stage: nome,
+        durationMs: Date.now() - startedAt,
+        errorName: error instanceof Error ? error.name : 'unknown',
+      });
+      throw error;
+    }
+  };
   try {
     const authorization = request.headers.get('authorization') ?? '';
     const idToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
     if (!idToken) return NextResponse.json({ error: 'Faça login para continuar.' }, { status: 401 });
     let user;
-    try { user = await verifyFirebaseIdToken(idToken); }
+    try { user = await etapa('firebase_verify_id_token', () => verifyFirebaseIdToken(idToken)); }
     catch { return NextResponse.json({ error: 'Sua sessão expirou. Entre novamente.' }, { status: 401 }); }
-    if (!await confirmarPremium(user.uid)) return NextResponse.json({ error: 'A assinatura Premium não está ativa ou não pôde ser confirmada.' }, { status: 403 });
+    if (!await confirmarPremium(user.uid, etapa)) return NextResponse.json({ error: 'A assinatura Premium não está ativa ou não pôde ser confirmada.' }, { status: 403 });
 
-    const body = await request.json().catch(() => ({})) as { cartaoId?: unknown; ym?: unknown; items?: unknown };
+    const body = await etapa('read_request_body', () => request.json().catch(() => ({}))) as { cartaoId?: unknown; ym?: unknown; items?: unknown };
     if (typeof body.cartaoId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.cartaoId)) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
     if (typeof body.ym !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.ym)) return NextResponse.json({ error: 'Mês de fatura inválido.' }, { status: 400 });
     if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 2000) return NextResponse.json({ error: 'Arquivo sem lançamentos ou com lançamentos demais.' }, { status: 400 });
@@ -66,27 +93,36 @@ export async function POST(request: Request) {
     }
 
     const base = `users/${user.uid}/cartoes/${body.cartaoId}`;
-    const card = await getFirestoreDocument(base);
+    const card = await etapa('firestore_read_card', () => getFirestoreDocument(base));
     if (!card) return NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
     const invoicePath = `${base}/faturas/${body.ym}`;
-    const invoice = await getFirestoreDocument(invoicePath);
+    const invoice = await etapa('firestore_read_invoice', () => getFirestoreDocument(invoicePath));
     if (invoice?.status === 'Pago') return NextResponse.json({ error: 'Esta fatura já está paga.' }, { status: 409 });
 
     const itemsPath = `${invoicePath}/itens`;
-    const existing = await listFirestoreCollection(itemsPath);
+    const existing = await etapa('firestore_read_existing_items', () => listFirestoreCollection(itemsPath));
     const existingIds = new Set(existing.map((item) => item.id));
     const identified = identificar(items);
     const newItems = identified.filter((item) => !existingIds.has(item.id));
-    await commitFirestoreDocuments(newItems.map(({ id, ...fields }) => ({ path: `${itemsPath}/${id}`, fields: fields as Record<string, unknown>, createOnly: true })));
+    await etapa('firestore_write_items', () => commitFirestoreDocuments(newItems.map(({ id, ...fields }) => ({ path: `${itemsPath}/${id}`, fields: fields as Record<string, unknown>, createOnly: true }))));
     // Soma a coleção efetivamente persistida. Isso mantém o total correto se duas
     // importações iguais chegarem simultaneamente ou se uma tentativa for repetida.
-    const persistedItems = await listFirestoreCollection(itemsPath);
+    const persistedItems = await etapa('firestore_read_saved_items', () => listFirestoreCollection(itemsPath));
     const total = totalGastos(persistedItems.map((item) => item.fields));
     const status = invoice?.status === 'Pago' ? 'Pago' : 'Pendente';
-    await commitFirestoreDocuments([{ path: invoicePath, fields: { valor: total, status, origem: 'csv', atualizadaEm: new Date().toISOString() } }]);
+    await etapa('firestore_write_invoice_total', () => commitFirestoreDocuments([{ path: invoicePath, fields: { valor: total, status, origem: 'csv', atualizadaEm: new Date().toISOString() } }]));
     return NextResponse.json({ novos: newItems.length, ignorados: identified.length - newItems.length, total });
   } catch (error) {
-    console.error('CSV import error:', error instanceof Error ? error.message : 'unknown');
-    return NextResponse.json({ error: 'Não foi possível importar a fatura. Tente novamente.' }, { status: 503 });
+    const timedOut = error instanceof MercadoPagoTimeoutError;
+    console.error('CSV import failed', {
+      requestId,
+      stage: currentStage,
+      durationMs: Date.now() - requestStartedAt,
+      errorName: error instanceof Error ? error.name : 'unknown',
+    });
+    return NextResponse.json(
+      { error: timedOut ? 'O Mercado Pago demorou para confirmar sua assinatura. Tente novamente em instantes.' : 'Não foi possível concluir a importação. Verifique sua conexão e tente novamente.' },
+      { status: timedOut ? 504 : 503 },
+    );
   }
 }

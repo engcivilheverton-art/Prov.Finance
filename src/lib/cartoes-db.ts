@@ -23,16 +23,38 @@ export class PremiumRequiredError extends Error {
   constructor() { super('PREMIUM_REQUIRED'); }
 }
 
+export class ImportacaoTimeoutError extends Error {
+  constructor() {
+    super('A importação demorou mais que o esperado. Pode tentar novamente; lançamentos já salvos serão ignorados.');
+    this.name = 'ImportacaoTimeoutError';
+  }
+}
+
+const IMPORT_TIMEOUT_MS = 55_000;
+
 /** A importação é processada pelo backend, que reconfirma a assinatura no Mercado Pago. */
 export async function importarItens(uid: string, cartaoId: string, ym: string, itens: ItemFatura[]) {
   const user = auth.currentUser;
   if (!user || user.uid !== uid) throw new Error('Sessão inválida. Entre novamente.');
-  const idToken = await user.getIdToken();
-  const response = await fetch('/api/billing/csv-import', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${idToken}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ cartaoId, ym, items: itens }),
-  });
+  let idToken: string;
+  try { idToken = await user.getIdToken(); }
+  catch { throw new Error('Não foi possível validar sua sessão. Entre novamente e tente importar.'); }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), IMPORT_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch('/api/billing/csv-import', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${idToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ cartaoId, ym, items: itens }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw new ImportacaoTimeoutError();
+    throw new Error('Falha de conexão durante a importação. Confira sua internet e tente novamente.');
+  } finally {
+    clearTimeout(timeout);
+  }
   const data = await response.json().catch(() => ({})) as { novos?: number; ignorados?: number; total?: number; error?: string };
   if (response.status === 403) throw new PremiumRequiredError();
   if (response.status === 409) throw new FaturaPagaError();

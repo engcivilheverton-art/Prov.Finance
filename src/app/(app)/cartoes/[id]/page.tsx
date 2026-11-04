@@ -102,7 +102,16 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
       const r = await importarItens(uid, cartaoId, ym, res.itens);
       onFim({ tipo: 'ok', texto: `${rotuloYm(ym)}: ${r.novos} lançamento(s) novo(s), ${r.ignorados} já existente(s). Total da fatura: ${brl(r.total)}.` });
     } catch (e) {
-      onFim({ tipo: 'erro', texto: e instanceof FaturaPagaError ? `A fatura de ${rotuloYm(ym)} já está paga.` : e instanceof PremiumRequiredError ? 'A assinatura Premium não está ativa. Confira seu plano antes de importar.' : 'Não foi possível importar. Tente novamente.' });
+      const texto = e instanceof FaturaPagaError
+        ? `A fatura de ${rotuloYm(ym)} já está paga.`
+        : e instanceof PremiumRequiredError
+          ? 'A assinatura Premium não está ativa. Confira seu plano antes de importar.'
+          : e instanceof Error
+            ? e.message
+            : 'Não foi possível importar. Tente novamente.';
+      onFim({ tipo: 'erro', texto });
+    } finally {
+      setImportando(false);
     }
   }
 

@@ -25,6 +25,30 @@ export type AuthorizedInvoice = {
   payment?: { status?: string; status_detail?: string };
 };
 
+export class MercadoPagoTimeoutError extends Error {
+  constructor(operation: string) {
+    super(`Mercado Pago request timed out: ${operation}`);
+    this.name = 'MercadoPagoTimeoutError';
+  }
+}
+
+const MERCADO_PAGO_TIMEOUT_MS = 12_000;
+
+async function fetchMercadoPago(url: string, operation: string): Promise<Response> {
+  try {
+    return await fetch(url, {
+      headers: { authorization: `Bearer ${mercadoPagoAccessToken()}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(MERCADO_PAGO_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new MercadoPagoTimeoutError(operation);
+    }
+    throw error;
+  }
+}
+
 export function mercadoPagoAccessToken(): string {
   const token = (process.env.MERCADOPAGO_ACCESS_TOKEN ?? '').trim();
   if (!token) throw new Error('MERCADOPAGO_ACCESS_TOKEN não configurado.');
@@ -42,10 +66,10 @@ export function appBaseUrl(): string {
 }
 
 export async function getPreapproval(id: string): Promise<Preapproval> {
-  const response = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(id)}`, {
-    headers: { authorization: `Bearer ${mercadoPagoAccessToken()}` },
-    cache: 'no-store',
-  });
+  const response = await fetchMercadoPago(
+    `https://api.mercadopago.com/preapproval/${encodeURIComponent(id)}`,
+    'preapproval',
+  );
   if (!response.ok) throw new Error(`Falha ao consultar assinatura Mercado Pago (${response.status}).`);
   return await response.json() as Preapproval;
 }
@@ -56,9 +80,10 @@ export async function getLatestAuthorizedInvoice(preapprovalId: string): Promise
   // Let Mercado Pago apply its default pagination. Its API reference documents
   // filtering this search by preapproval_id and shows the default page size.
   const query = new URLSearchParams({ preapproval_id: preapprovalId });
-  const response = await fetch(`https://api.mercadopago.com/authorized_payments/search?${query}`, {
-    headers: { authorization: `Bearer ${mercadoPagoAccessToken()}` }, cache: 'no-store',
-  });
+  const response = await fetchMercadoPago(
+    `https://api.mercadopago.com/authorized_payments/search?${query}`,
+    'authorized_payment_search',
+  );
   if (!response.ok) {
     const providerError = await response.json().catch(() => ({})) as { error?: unknown; message?: unknown };
     const diagnostic = [providerError.error, providerError.message]
