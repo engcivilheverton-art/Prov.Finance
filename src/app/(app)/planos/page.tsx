@@ -33,11 +33,11 @@ export default function PlanosPage() {
     }
   }
 
-  const podeCancelar = ['pending', 'authorized', 'paused'].includes(assinatura.status);
+  const podeCancelar = !assinatura.carregando && ['pending', 'authorized', 'paused'].includes(assinatura.status);
   return (
     <>
       <div className="pagina-cab"><div><div className="sub">Planos PROV.</div><h1>Escolha seu plano</h1></div></div>
-      {assinatura.premium ? <div className="aviso aviso-ok" style={{ marginBottom: '1rem' }}>Sua assinatura Premium está ativa ({assinatura.plan === 'anual' ? 'anual' : 'mensal'}).</div> : <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>Você está no plano gratuito. O Premium só é ativado após a confirmação da assinatura pelo Mercado Pago.</div>}
+      {assinatura.carregando ? <div className="aviso aviso-info" role="status" aria-busy="true" style={{ marginBottom: '1rem' }}>Verificando sua assinatura…</div> : assinatura.premium ? <div className="aviso aviso-ok" style={{ marginBottom: '1rem' }}>Sua assinatura Premium está ativa ({assinatura.plan === 'anual' ? 'anual' : 'mensal'}).</div> : <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>Você está no plano gratuito. O Premium só é ativado após a confirmação da assinatura pelo Mercado Pago.</div>}
       <div className="grade-2">
         {Object.values(PLANOS).map((plano) => (
           <section className="card" key={plano.id}>
@@ -46,7 +46,7 @@ export default function PlanosPage() {
               <p style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0 0 .3rem' }}>{moeda(plano.valor)}<span className="pequeno suave">/{plano.id === 'mensal' ? 'mês' : 'ano'}</span></p>
               <p className="suave">{plano.id === 'mensal' ? 'Cobrança recorrente mensal.' : 'Cobrança recorrente a cada 12 meses.'}</p>
               <ul>{RECURSOS.premium.map((recurso) => <li key={recurso}>{recurso}</li>)}</ul>
-              {!assinatura.premium && <Link className="btn" href={`/cadastro?plano=${plano.id}`} style={{ display: 'inline-flex', textDecoration: 'none', marginTop: '.5rem' }}>Contratar {plano.nome}</Link>}
+              {!assinatura.carregando && !assinatura.premium && <Link className="btn" href={`/cadastro?plano=${plano.id}`} style={{ display: 'inline-flex', textDecoration: 'none', marginTop: '.5rem' }}>Contratar {plano.nome}</Link>}
             </div>
           </section>
         ))}

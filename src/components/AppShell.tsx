@@ -52,12 +52,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       <main className="conteudo">
-        <div className="topo-mobile">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="logo" src="/logo-prov.png" alt="PROV" />
-          <button type="button" onClick={() => void sair()}>Sair</button>
+        <div className="conteudo-interior">
+          <div className="topo-mobile">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="logo" src="/logo-prov.png" alt="PROV" />
+            <button type="button" onClick={() => void sair()}>Sair</button>
+          </div>
+          {children}
         </div>
-        {children}
       </main>
     </div>
   );
