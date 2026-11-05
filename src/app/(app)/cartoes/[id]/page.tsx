@@ -181,7 +181,9 @@ export default function CartaoDetalhe() {
         </div>
         <div className="acoes">
           <input ref={inputArquivo} type="file" accept=".csv,.txt,text/csv" hidden onChange={(e) => void lerArquivo(e.target.files?.[0])} />
-          {assinatura.premium ? (
+          {assinatura.carregando ? (
+            <button type="button" className="btn btn-sec" disabled aria-busy="true">Verificando plano…</button>
+          ) : assinatura.premium ? (
             <button type="button" className="btn btn-sec" onClick={() => inputArquivo.current?.click()}>Importar CSV</button>
           ) : (
             <Link className="btn btn-sec" href="/planos" style={{ textDecoration: 'none' }}>Importar CSV · Premium</Link>
@@ -195,7 +197,7 @@ export default function CartaoDetalhe() {
         <div className="k"><small>Limite disponível</small><b>{resumo.disponivel === null ? '—' : brl(resumo.disponivel)}</b></div>
       </div>
 
-      {!assinatura.premium && <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>A importação de faturas por CSV é um recurso Premium. Você continua podendo cadastrar e editar faturas manualmente. <Link href="/planos">Conheça os planos</Link>.</div>}
+      {!assinatura.carregando && !assinatura.premium && <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>A importação de faturas por CSV é um recurso Premium. Você continua podendo cadastrar e editar faturas manualmente. <Link href="/planos">Conheça os planos</Link>.</div>}
       {assinatura.erro && <div className="aviso aviso-alerta" role="status" style={{ marginBottom: '1rem' }}>{assinatura.erro}</div>}
       {aviso && <div className={`aviso ${aviso.tipo === 'ok' ? 'aviso-ok' : 'aviso-erro'}`} role="status" style={{ marginBottom: '1rem' }}>{aviso.texto}</div>}
 
