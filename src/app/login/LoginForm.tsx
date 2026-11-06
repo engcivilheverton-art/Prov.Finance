@@ -39,6 +39,8 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
         });
         const data = await response.json() as { checkoutUrl?: string; error?: string };
         if (!response.ok || !data.checkoutUrl) throw new Error(data.error || 'Não foi possível iniciar o checkout.');
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (!ativo) return;
         window.location.assign(data.checkoutUrl);
       } catch (e) {
         if (ativo) setErro(e instanceof Error ? e.message : 'Não foi possível iniciar o checkout.');
@@ -79,13 +81,14 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
     );
   }
 
-  if (plano && user && enviando && !erro) {
+  if (plano && user) {
     return (
       <main className="login-pagina">
         <div className="card login-card" role="status" aria-live="polite">
           <div className="eyebrow" style={{ textAlign: 'center' }}>PROV.</div>
-          <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>Abrindo o Mercado Pago</h1>
-          <p style={{ textAlign: 'center' }}>Seu plano foi selecionado. Estamos preparando o pagamento com segurança.</p>
+          <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>{erro ? 'Não foi possível abrir o checkout' : 'Indo para o checkout'}</h1>
+          <p style={{ textAlign: 'center' }}>{erro || 'Sua conta está conectada. Você será redirecionado ao checkout seguro do Mercado Pago em instantes.'}</p>
+          {erro && <button type="button" className="btn" onClick={() => window.location.reload()}>Tentar novamente</button>}
         </div>
       </main>
     );
