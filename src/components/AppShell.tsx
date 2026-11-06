@@ -12,6 +12,7 @@ const ITENS: { href: string; rotulo: string; icone: NomeIcone }[] = [
   { href: '/dividas', rotulo: 'Dívidas', icone: 'cal' },
   { href: '/rendas', rotulo: 'Rendas', icone: 'swap' },
   { href: '/fixas', rotulo: 'Fixas', icone: 'rep' },
+  { href: '/ferramentas', rotulo: 'Calculadoras gratuitas', icone: 'calc' },
   { href: '/perfil', rotulo: 'Perfil', icone: 'user' },
 ];
 

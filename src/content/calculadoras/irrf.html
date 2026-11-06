@@ -1,0 +1,37 @@
+<article class="ct-article">
+<div class="ct-article__eyebrow">Guia Completo</div>
+<h2>IRRF {{ANO}}: Imposto de Renda na Fonte, Isenção até R$ 5 mil e Como Calcular</h2>
+<p>O <strong>IRRF (Imposto de Renda Retido na Fonte)</strong> é o imposto descontado diretamente do salário pelo empregador antes do pagamento. Desde janeiro de 2026, a <strong>Lei 15.270/2025</strong> criou uma redução mensal que zera o imposto de quem recebe até R$ 5.000 e o diminui gradualmente até R$ 7.350.</p>
+<h3>Tabela progressiva mensal do IRRF {{ANO}}</h3>
+<p>A tabela de faixas continua a mesma em vigor desde maio de 2025. A isenção ampliada não alterou as faixas: ela vem de uma <strong>redução aplicada sobre o imposto calculado</strong>.</p>
+{{TABELA_IRRF}}
+<h3>Passo a passo do cálculo</h3>
+<ol>
+<li><strong>Base de cálculo:</strong> salário bruto menos as deduções. A fonte pagadora usa a opção mais vantajosa: (a) INSS + {{DEP}} por dependente + pensão alimentícia judicial, ou (b) o <strong>desconto simplificado</strong> de {{SIMPLIFICADO}}.</li>
+<li><strong>Imposto pela tabela:</strong> base × alíquota da faixa − parcela a deduzir.</li>
+<li><strong>Redução da Lei 15.270/2025:</strong> calculada sobre o rendimento bruto mensal.</li>
+</ol>
+<h3>Como funciona a redução da Lei 15.270/2025</h3>
+<table class="ct-info-table">
+<tr><th>Rendimento bruto mensal</th><th>Redução aplicada</th></tr>
+<tr><td>Até {{ISENCAO_ATE}}</td><td>Imposto zerado (redução de até {{REDUCAO_MAX}})</td></tr>
+<tr><td>De {{ISENCAO_ATE}} a {{PARCIAL_ATE}}</td><td>Redução decrescente: {{REDUCAO_A}} − ({{REDUCAO_B}} × rendimento)</td></tr>
+<tr><td>Acima de {{PARCIAL_ATE}}</td><td>Sem redução: vale a tabela cheia</td></tr>
+</table>
+<div class="ct-callout"><p><strong>Na prática:</strong> quem recebe até {{ISENCAO_ATE}} por mês não tem IRRF no contracheque. A faixa de isenção formal da tabela continua em {{FAIXA_ISENTA}}; a isenção até {{ISENCAO_ATE}} resulta da redução.</p></div>
+<h3>Exemplos (sem dependentes)</h3>
+{{TABELA_EXEMPLOS_IRRF}}
+<h3>Quem pode ser declarado como dependente?</h3>
+<ul>
+<li>Cônjuge ou companheiro(a)</li>
+<li>Filhos e enteados até 21 anos (ou até 24 anos, se cursando ensino superior ou técnico)</li>
+<li>Pais, avós e bisavós que não tenham rendimentos acima do limite legal</li>
+<li>Irmãos, netos e bisnetos sem arrimo dos pais, nas condições previstas em lei</li>
+</ul>
+<div class="ct-callout ct-callout--warn"><p>Os valores são estimativas educativas. O cálculo oficial é feito pela folha de pagamento da empresa, que pode considerar outros fatores (pensão, previdência privada, rendimentos acumulados). Confira sempre no seu contracheque.</p></div>
+<h3>Perguntas Frequentes</h3>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">O IRRF descontado na fonte é o imposto definitivo?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Não necessariamente. Na declaração anual do IRPF, o imposto devido no ano é comparado com o que foi retido. Se retiveram a mais, há restituição; se retiveram a menos, há diferença a pagar.</div></div>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">Por que a calculadora mostra "desconto simplificado"?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Porque para quem tem poucas deduções ele costuma ser mais vantajoso que descontar INSS e dependentes. A calculadora compara os dois métodos e usa o que resulta em menos imposto, como faz a folha de pagamento.</div></div>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">O 13º salário também tem IRRF?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Sim. O 13º é tributado separadamente do salário mensal. Na calculadora de 13º salário mostramos uma estimativa dos descontos de INSS e IRRF.</div></div>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">Aposentados pagam IRRF?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Sim, se o rendimento ultrapassar o limite de isenção. Aposentados e pensionistas com 65 anos ou mais têm uma parcela adicional isenta sobre os proventos de aposentadoria e pensão.</div></div>
+</article>

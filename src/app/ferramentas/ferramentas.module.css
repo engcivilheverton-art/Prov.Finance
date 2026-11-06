@@ -1,0 +1,8 @@
+.wrap { width: min(100%, 1080px); margin: 0 auto; padding: 2rem 1.4rem 4rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+.tool { display: grid; align-content: start; gap: .65rem; padding: 1.25rem; text-decoration: none; transition: transform .18s, border-color .18s; }
+.tool:hover { transform: translateY(-2px); border-color: var(--g); }
+.tool > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; background: var(--info-bg); color: var(--g); font-size: 1.35rem; font-weight: 800; }
+.tool p { color: var(--mut); font-size: .88rem; }
+.tool b { color: var(--g); font-size: .88rem; }
+.disclaimer { margin-top: 1.4rem; color: var(--mut); font-size: .8rem; }

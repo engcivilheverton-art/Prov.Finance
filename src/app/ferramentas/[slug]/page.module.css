@@ -1,0 +1,13 @@
+.wrap { width: min(100%, 1080px); margin: 0 auto; padding: 1.5rem 1.4rem 4rem; }
+.breadcrumb { display: flex; gap: .5rem; align-items: center; margin-bottom: 1.1rem; color: var(--mut); font-size: .82rem; }
+.breadcrumb a { color: var(--g); }
+.disclaimer { margin: 1rem 0 2rem; color: var(--mut); font-size: .8rem; }
+.article { max-width: 820px; margin: 0 auto; padding: 1.5rem; border: 1px solid var(--line); border-radius: 18px; background: var(--card); }
+.article :global(h2) { margin: .8rem 0 1rem; font-size: 1.35rem; }
+.article :global(h3) { margin: 1.4rem 0 .6rem; font-size: 1.05rem; }
+.article :global(p), .article :global(ul), .article :global(ol) { margin: .7rem 0; color: var(--mut); font-size: .92rem; }
+.article :global(ul), .article :global(ol) { padding-left: 1.4rem; }
+.article :global(li) { margin: .35rem 0; }
+.article :global(a) { color: var(--g); }
+.article :global(.ct-callout) { margin: 1rem 0; padding: .9rem 1rem; border-radius: 12px; background: var(--info-bg); }
+@media (max-width: 560px) { .wrap { padding-inline: 1rem; } .article { padding: 1rem; } }

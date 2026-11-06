@@ -1,0 +1,28 @@
+<article class="ct-article">
+<div class="ct-article__eyebrow">Guia Completo</div>
+<h2>INSS {{ANO}}: Tabela Progressiva, Teto e Como Calcular o Desconto</h2>
+<p>O <strong>INSS (Instituto Nacional do Seguro Social)</strong> é a contribuição previdenciária descontada mensalmente do salário do trabalhador com carteira assinada. Esse desconto garante o acesso a benefícios como aposentadoria, auxílio-doença, salário-maternidade e pensão por morte.</p>
+<h3>Tabela de contribuição do INSS {{ANO}}</h3>
+<p>Para empregados, empregados domésticos e trabalhadores avulsos, o INSS usa uma <strong>tabela progressiva</strong>: cada faixa salarial tem sua própria alíquota, e o percentual incide <strong>apenas sobre a parcela do salário que cabe naquela faixa</strong>, e não sobre o salário inteiro.</p>
+{{TABELA_INSS}}
+<div class="ct-callout"><p><strong>Teto do INSS em {{ANO}}:</strong> {{INSS_TETO}}. Salários acima desse valor contribuem como se ganhassem o teto, o que resulta em um desconto máximo de {{INSS_DESCONTO_MAX}} por mês. O piso, que acompanha o salário mínimo, é de {{SALARIO_MINIMO}}.</p></div>
+<h3>Como funciona o cálculo progressivo?</h3>
+<p>Cada faixa é calculada separadamente e os resultados são somados. Veja o exemplo de um salário de {{INSS_EXEMPLO_SALARIO}}:</p>
+<ul>
+{{INSS_EXEMPLO_ITENS}}
+</ul>
+<p>Note que a alíquota efetiva ({{INSS_EXEMPLO_EFETIVA}}) fica abaixo da alíquota da última faixa atingida. Quanto mais perto do teto, mais a alíquota efetiva se aproxima de 14%, sem nunca alcançá-la.</p>
+<h3>Para que serve a contribuição?</h3>
+<p>A contribuição ao INSS garante ao trabalhador e à família proteção em diversas situações:</p>
+<ul>
+<li>Aposentadoria por idade, por tempo de contribuição ou por incapacidade permanente</li>
+<li>Auxílio por incapacidade temporária (antigo auxílio-doença) e auxílio-acidente</li>
+<li>Salário-maternidade</li>
+<li>Pensão por morte e auxílio-reclusão</li>
+</ul>
+<div class="ct-callout ct-callout--warn"><p>Esta calculadora vale para empregados CLT, domésticos e avulsos. Contribuintes individuais (autônomos) e facultativos seguem regras próprias, com alíquotas de 11% ou 20% conforme o plano.</p></div>
+<h3>Perguntas Frequentes</h3>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">O INSS é descontado sobre horas extras e comissões?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Sim. O INSS incide sobre toda a remuneração do empregado, incluindo horas extras, comissões, adicionais e gorjetas, respeitado o teto.</div></div>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">As faixas mudam todo ano?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Sim. As faixas e o teto são reajustados todo início de ano por portaria interministerial, acompanhando o salário mínimo e a inflação. As alíquotas (7,5% a 14%) têm se mantido.</div></div>
+<div class="ct-faq-item"><button class="ct-faq-q" type="button" aria-expanded="false">O desconto do INSS reduz o imposto de renda?<span class="ct-faq-icon" aria-hidden="true">▾</span></button><div class="ct-faq-a">Sim. O valor pago ao INSS é uma das deduções permitidas na base de cálculo do IRRF. Veja a calculadora de IRRF para entender como os dois se combinam.</div></div>
+</article>

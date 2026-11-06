@@ -1,0 +1,40 @@
+{
+  "_comment": "FONTE ÚNICA das tabelas legais. Atualizar TODO JANEIRO (e quando houver nova lei), depois rodar: node tools/build.js && node tests/ct-core.test.js",
+  "ano": 2026,
+  "vigencia": "2026-01-01",
+  "atualizadoEm": "2026-11-06",
+  "fontes": [
+    "INSS: Portaria Interministerial MPS/MF nº 13, de 09/01/2026 (faixas, teto R$ 8.475,55; salário mínimo R$ 1.621,00)",
+    "IRRF: tabela mensal vigente desde mai/2025 (Lei 15.191/2025) + redução da Lei 15.270/2025 (isenção efetiva até R$ 5.000; redução decrescente até R$ 7.350)",
+    "Dedução por dependente R$ 189,59 e desconto simplificado mensal R$ 607,20"
+  ],
+  "salarioMinimo": 1621.00,
+  "inss": {
+    "teto": 8475.55,
+    "faixas": [
+      { "ate": 1621.00, "aliquota": 0.075 },
+      { "ate": 2902.84, "aliquota": 0.09 },
+      { "ate": 4354.27, "aliquota": 0.12 },
+      { "ate": 8475.55, "aliquota": 0.14 }
+    ]
+  },
+  "irrf": {
+    "faixas": [
+      { "ate": 2428.80, "aliquota": 0, "deduzir": 0 },
+      { "ate": 2826.65, "aliquota": 0.075, "deduzir": 182.16 },
+      { "ate": 3751.05, "aliquota": 0.15, "deduzir": 394.16 },
+      { "ate": 4664.68, "aliquota": 0.225, "deduzir": 675.49 },
+      { "ate": null, "aliquota": 0.275, "deduzir": 908.73 }
+    ],
+    "deducaoDependente": 189.59,
+    "descontoSimplificado": 607.20,
+    "reducao": {
+      "isencaoAte": 5000.00,
+      "maximo": 312.89,
+      "parcialAte": 7350.00,
+      "formula": { "a": 978.62, "b": 0.133145 }
+    }
+  },
+  "fgts": { "aliquotaMensal": 0.08, "multaSemJustaCausa": 0.40, "multaAcordo": 0.20 },
+  "jornada": { "divisorPadrao": 220, "limiteSemanalHoras": 44 }
+}

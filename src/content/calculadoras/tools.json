@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "horas-extras", "order": 1, "tier": "free",
+    "title": "Horas Extras", "h1": "Calculadora de Horas Extras",
+    "subtitle": "Descubra o valor exato das suas horas extras com 50%, 100% ou percentual personalizado.",
+    "icon": "fa-solid fa-clock", "color": "blue",
+    "hub": "Calcule o valor das horas extras com percentuais de 50%, 100% ou personalizado.",
+    "metaTitle": "Calculadora de Horas Extras {{ANO}} – 50%, 100% e Personalizado",
+    "metaDescription": "Calculadora de horas extras gratuita: informe salário, jornada e quantidade de horas e veja o valor da hora extra com 50%, 100% ou percentual personalizado.",
+    "keywords": "calculadora horas extras, cálculo hora extra, adicional 50%, adicional 100%, valor da hora extra, CLT"
+  },
+  {
+    "slug": "banco-de-horas", "order": 2, "tier": "free",
+    "title": "Banco de Horas", "h1": "Calculadora de Banco de Horas",
+    "subtitle": "Calcule seu saldo positivo ou negativo de horas e entenda seus direitos.",
+    "icon": "fa-solid fa-hourglass-half", "color": "indigo",
+    "hub": "Verifique seu saldo positivo ou negativo de horas e entenda seus direitos.",
+    "metaTitle": "Calculadora de Banco de Horas – Saldo Positivo e Negativo",
+    "metaDescription": "Calcule o saldo do seu banco de horas (positivo ou negativo) e entenda prazos de compensação e o que acontece na rescisão.",
+    "keywords": "banco de horas, calculadora banco de horas, saldo de horas, compensação de horas, CLT"
+  },
+  {
+    "slug": "ferias", "order": 3, "tier": "free",
+    "title": "Férias", "h1": "Calculadora de Férias",
+    "subtitle": "Calcule o valor das suas férias com 1/3 constitucional e abono pecuniário.",
+    "icon": "fa-solid fa-umbrella-beach", "color": "teal",
+    "hub": "Calcule férias com 1/3 constitucional e abono pecuniário de forma simples.",
+    "metaTitle": "Calculadora de Férias {{ANO}} – 1/3 Constitucional e Abono",
+    "metaDescription": "Calculadora de férias gratuita: veja o valor com 1/3 constitucional e a venda de 10 dias (abono pecuniário), com resultado detalhado.",
+    "keywords": "calculadora de férias, cálculo de férias, 1/3 de férias, abono pecuniário, vender férias, CLT"
+  },
+  {
+    "slug": "decimo-terceiro", "order": 4, "tier": "free",
+    "title": "13º Salário", "h1": "Calculadora de 13º Salário",
+    "subtitle": "Calcule o valor do décimo terceiro proporcional ao seu tempo trabalhado no ano.",
+    "icon": "fa-solid fa-gift", "color": "amber",
+    "hub": "Calcule o décimo terceiro proporcional ao tempo trabalhado no ano.",
+    "metaTitle": "Calculadora de 13º Salário {{ANO}} – 1ª e 2ª Parcela",
+    "metaDescription": "Calcule o seu 13º salário proporcional com descontos estimados de INSS e IRRF e veja o valor da 1ª e da 2ª parcela.",
+    "keywords": "calculadora décimo terceiro, 13º salário, gratificação natalina, primeira parcela, segunda parcela"
+  },
+  {
+    "slug": "rescisao", "order": 5, "tier": "free",
+    "title": "Rescisão", "h1": "Calculadora de Rescisão",
+    "subtitle": "Estime os valores da sua rescisão de acordo com o tipo de desligamento.",
+    "icon": "fa-solid fa-file-signature", "color": "rose",
+    "hub": "Estime os valores da rescisão para os 4 tipos de desligamento previstos na CLT.",
+    "metaTitle": "Calculadora de Rescisão CLT {{ANO}} – Estimativa por Tipo de Desligamento",
+    "metaDescription": "Estime sua rescisão: demissão sem justa causa, pedido de demissão, justa causa ou acordo (art. 484-A), com saldo de salário, férias, 13º, aviso prévio e multa do FGTS.",
+    "keywords": "calculadora de rescisão, rescisão CLT, verbas rescisórias, aviso prévio, multa FGTS, demissão sem justa causa"
+  },
+  {
+    "slug": "inss", "order": 6, "tier": "free",
+    "title": "INSS", "h1": "Calculadora de INSS",
+    "subtitle": "Calcule o desconto previdenciário pela tabela progressiva vigente.",
+    "icon": "fa-solid fa-shield-halved", "color": "green",
+    "hub": "Calcule o desconto previdenciário pela tabela progressiva vigente em {{ANO}}.",
+    "metaTitle": "Calculadora de INSS {{ANO}} – Tabela Progressiva e Teto",
+    "metaDescription": "Calcule o desconto do INSS pela tabela progressiva de {{ANO}} (7,5% a 14%) e veja a alíquota efetiva e o salário após o desconto.",
+    "keywords": "calculadora INSS, tabela INSS, desconto INSS, teto do INSS, alíquota INSS, contribuição previdenciária"
+  },
+  {
+    "slug": "irrf", "order": 7, "tier": "free",
+    "title": "IRRF", "h1": "Calculadora de IRRF",
+    "subtitle": "Estime o Imposto de Renda Retido na Fonte com a regra vigente, incluindo a redução da Lei 15.270.",
+    "icon": "fa-solid fa-landmark", "color": "purple",
+    "hub": "Estime o imposto de renda retido na fonte, com a isenção até R$ 5 mil e dependentes.",
+    "metaTitle": "Calculadora de IRRF {{ANO}} – Isenção até R$ 5 mil e Redução",
+    "metaDescription": "Calculadora de IRRF {{ANO}}: veja o imposto de renda na fonte com INSS, dependentes, desconto simplificado e a redução da Lei 15.270/2025 (isenção até R$ 5.000).",
+    "keywords": "calculadora IRRF, imposto de renda na fonte, IRRF 2026, isenção até 5 mil, desconto simplificado, Lei 15.270"
+  },
+  {
+    "slug": "conversor-de-horas", "order": 8, "tier": "free",
+    "title": "Conversor de Horas", "h1": "Conversor de Horas",
+    "subtitle": "Converta horas em minutos, decimais para hh:mm e muito mais.",
+    "icon": "fa-solid fa-rotate", "color": "cyan",
+    "hub": "Converta horas em minutos, decimais em hh:mm e vice-versa.",
+    "metaTitle": "Conversor de Horas – Horas para Minutos e Decimal para hh:mm",
+    "metaDescription": "Converta horas em minutos, minutos em horas, horas decimais em hh:mm e hh:mm em horas decimais. Ideal para ponto eletrônico e banco de horas.",
+    "keywords": "conversor de horas, horas para minutos, horas decimais, hh:mm para decimal, ponto eletrônico"
+  }
+]

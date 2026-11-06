@@ -4,6 +4,7 @@ import '@fontsource-variable/manrope';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://prov-financeiro.vercel.app'),
   title: 'PROV · Planejador Financeiro',
   description: 'Controle de cartões, dívidas, rendas, contas fixas e investimentos.',
 };
