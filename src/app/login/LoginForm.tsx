@@ -65,6 +65,32 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
     void executar(async () => { await recuperarSenha(email.trim()); setInfo('Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.'); });
   }
 
+  // A checagem inicial do Firebase é assíncrona. Evita mostrar a tela de
+  // entrada por um instante para quem já está autenticado e está contratando.
+  if (plano && loading) {
+    return (
+      <main className="login-pagina">
+        <div className="card login-card" role="status" aria-live="polite">
+          <div className="eyebrow" style={{ textAlign: 'center' }}>PROV.</div>
+          <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>Preparando seu checkout</h1>
+          <p style={{ textAlign: 'center' }}>Estamos confirmando sua sessão segura. Você será encaminhado ao Mercado Pago em instantes.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (plano && user && enviando && !erro) {
+    return (
+      <main className="login-pagina">
+        <div className="card login-card" role="status" aria-live="polite">
+          <div className="eyebrow" style={{ textAlign: 'center' }}>PROV.</div>
+          <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>Abrindo o Mercado Pago</h1>
+          <p style={{ textAlign: 'center' }}>Seu plano foi selecionado. Estamos preparando o pagamento com segurança.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="login-pagina">
       <div className="card login-card">
