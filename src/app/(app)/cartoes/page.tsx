@@ -3,15 +3,17 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Modal } from '@/components/Modal';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useAuth } from '@/lib/auth-context';
 import { resumoCartao } from '@/lib/cartoes';
 import { excluirCartao } from '@/lib/cartoes-db';
 import { useColecao } from '@/lib/colecao';
+import { usePlanLimits } from '@/lib/use-plan-limits';
 import { rotuloYm } from '@/lib/datas';
 import { brl } from '@/lib/formato';
 import { PALETA_CARTAO, type Cartao, type Com, type Fatura } from '@/types/finance';
 
-const MAX_CARTOES = 6;
 const BANDEIRAS = ['Visa', 'Mastercard', 'Elo', 'American Express', 'Hipercard', 'Outra'];
 const gradiente = (base: string) => {
   const p = PALETA_CARTAO.find((c) => c.base === base) ?? PALETA_CARTAO[0];
@@ -70,8 +72,8 @@ function FormCartao({ inicial, onSalvar, onCancelar }: { inicial: Cartao | null;
     setSalvando(true);
     try {
       await onSalvar({ nome: nome.trim(), bandeira, diaVencimento: d, limite: l, corBase: cor });
-    } catch {
-      setErro('Não foi possível salvar. Tente novamente.');
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não foi possível salvar. Tente novamente.');
       setSalvando(false);
     }
   }
@@ -107,9 +109,12 @@ function FormCartao({ inicial, onSalvar, onCancelar }: { inicial: Cartao | null;
 
 export default function CartoesPage() {
   const { user } = useAuth();
+  const limites = usePlanLimits();
   const uid = user?.uid;
-  const { itens: cartoes, carregando, erro, adicionar, salvar } = useColecao<Cartao>(uid ? ['users', uid, 'cartoes'] : null);
+  const { itens: cartoes, carregando, erro, salvar } = useColecao<Cartao>(uid ? ['users', uid, 'cartoes'] : null);
   const [edicao, setEdicao] = useState<Com<Cartao> | 'novo' | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
+  const podeAdicionar = limites.canAdd('cards', cartoes.length);
 
   async function excluir(c: Com<Cartao>) {
     if (!uid || !confirm(`Excluir o cartão "${c.nome}" e todas as faturas dele?`)) return;
@@ -126,12 +131,10 @@ export default function CartoesPage() {
       {carregando ? <p className="suave">Carregando…</p> : (
         <div className="cartoes">
           {uid && cartoes.map((c) => <CartaoCard key={c.id} uid={uid} cartao={c} onEditar={() => setEdicao(c)} onExcluir={() => void excluir(c)} />)}
-          {cartoes.length < MAX_CARTOES && (
-            <button type="button" className="cc cc-novo" onClick={() => setEdicao('novo')}>
-              <span style={{ fontSize: '1.6rem' }}>＋</span>Adicionar cartão
-              <span className="pequeno">{cartoes.length}/{MAX_CARTOES}</span>
-            </button>
-          )}
+          <button type="button" className="cc cc-novo" onClick={() => podeAdicionar ? setEdicao('novo') : setUpgrade(true)} disabled={limites.carregando}>
+            <span style={{ fontSize: '1.6rem' }}>＋</span>Adicionar cartão {!podeAdicionar && <PremiumBadge />}
+            {!limites.premium && <span className="pequeno">{cartoes.length}/1 no Free</span>}
+          </button>
         </div>
       )}
 
@@ -141,11 +144,12 @@ export default function CartoesPage() {
           onCancelar={() => setEdicao(null)}
           onSalvar={async (dados) => {
             if (edicao && edicao !== 'novo') await salvar(edicao.id, dados);
-            else await adicionar(dados);
+            else await limites.create('cards', dados);
             setEdicao(null);
           }}
         />
       </Modal>
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="cartões adicionais" />
     </>
   );
 }

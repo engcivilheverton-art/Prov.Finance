@@ -34,7 +34,10 @@ service cloud.firestore {
 
     // Cartões e faturas: manter cadastro manual no Free; gravação de CSV é exclusiva do backend.
     match /users/{uid}/cartoes/{cartaoId} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      // A criação passa pela API/Admin, que verifica o plano e conta os registros existentes.
+      allow create: if false;
+      allow update, delete: if isOwner(uid);
     }
     match /users/{uid}/cartoes/{cartaoId}/faturas/{ym} {
       allow read, delete: if isOwner(uid);
@@ -51,7 +54,9 @@ service cloud.firestore {
 
     // Demais dados financeiros — só o próprio dono. As áreas com regras específicas acima são excluídas.
     match /users/{uid}/{colecao}/{docId=**} {
-      allow read, write: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes';
+      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks';
+      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas';
+      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks';
     }
 
     // Tudo o mais é negado.

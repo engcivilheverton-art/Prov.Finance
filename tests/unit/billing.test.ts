@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { PLANOS, planoValido } from '@/lib/planos';
+import { canAddResource, canUseFeature, FREE_LIMITS, PLANOS, planoValido } from '@/lib/planos';
 import { matchesPlan } from '@/lib/planos';
 import { hasValidWebhookSignature } from '@/lib/webhook-signature';
 import { hasConfirmedLatestInvoice } from '@/lib/subscription-entitlement';
@@ -19,6 +19,18 @@ describe('catálogo de assinaturas', () => {
     expect(matchesPlan({ auto_recurring: { frequency: 12, frequency_type: 'months', transaction_amount: 119.88, currency_id: 'BRL' } }, 'anual')).toBe(true);
     expect(matchesPlan({ auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 0.01, currency_id: 'BRL' } }, 'mensal')).toBe(false);
     expect(matchesPlan({ auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 11.99, currency_id: 'USD' } }, 'mensal')).toBe(false);
+  });
+});
+
+describe('limites do plano Free', () => {
+  it('centraliza os limites e libera recursos para Premium', () => {
+    expect(FREE_LIMITS).toMatchObject({ cards: 1, bankAccounts: 1, debts: 1, dashboardCharts: 1, csvImport: false });
+    expect(canAddResource('cards', 0, false)).toBe(true);
+    expect(canAddResource('cards', 1, false)).toBe(false);
+    expect(canAddResource('debts', 2, false)).toBe(false);
+    expect(canAddResource('bankAccounts', 1, true)).toBe(true);
+    expect(canUseFeature('csvImport', false)).toBe(false);
+    expect(canUseFeature('csvImport', true)).toBe(true);
   });
 });
 

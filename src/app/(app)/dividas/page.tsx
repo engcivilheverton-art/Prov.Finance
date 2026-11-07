@@ -2,8 +2,11 @@
 
 import { useState, type FormEvent } from 'react';
 import { Modal } from '@/components/Modal';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useAuth } from '@/lib/auth-context';
 import { useColecao } from '@/lib/colecao';
+import { usePlanLimits } from '@/lib/use-plan-limits';
 import { rotuloCurto, ymAtual } from '@/lib/datas';
 import { reconstruirParcelas, resumoDivida } from '@/lib/dividas';
 import { arredondar, brl } from '@/lib/formato';
@@ -39,8 +42,8 @@ function FormDivida({ inicial, onSalvar, onCancelar }: { inicial: Com<Divida> | 
         nome: nome.trim(), credor: credor.trim() || undefined, categoria, parcela: v, inicio, diaVencimento: d,
         parcelas: reconstruirParcelas(inicial?.parcelas, v, n, p, inicio),
       });
-    } catch {
-      setErro('Não foi possível salvar. Tente novamente.');
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível salvar. Tente novamente.');
     }
   }
 
@@ -110,9 +113,12 @@ function CartaoDivida({ d, onEditar, onExcluir, onAlterar }: { d: Com<Divida>; o
 
 export default function DividasPage() {
   const { user } = useAuth();
+  const limites = usePlanLimits();
   const uid = user?.uid;
-  const { itens, carregando, erro, adicionar, salvar, mesclar, remover } = useColecao<Divida>(uid ? ['users', uid, 'dividas'] : null);
+  const { itens, carregando, erro, salvar, mesclar, remover } = useColecao<Divida>(uid ? ['users', uid, 'dividas'] : null);
   const [edicao, setEdicao] = useState<Com<Divida> | 'nova' | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
+  const podeAdicionar = limites.canAdd('debts', itens.length);
 
   const abertas = itens.filter((d) => !resumoDivida(d.parcelas).quitada).sort((a, b) => a.nome.localeCompare(b.nome));
   const concluidas = itens.filter((d) => resumoDivida(d.parcelas).quitada).sort((a, b) => a.nome.localeCompare(b.nome));
@@ -128,7 +134,9 @@ export default function DividasPage() {
     <>
       <div className="pagina-cab">
         <div><div className="sub">Passivo</div><h1>Dívidas</h1></div>
-        <button type="button" className="btn" onClick={() => setEdicao('nova')}>Nova dívida</button>
+        <button type="button" className="btn" disabled={limites.carregando} onClick={() => podeAdicionar ? setEdicao('nova') : setUpgrade(true)}>
+          Nova dívida {!podeAdicionar && <PremiumBadge />}
+        </button>
       </div>
 
       {erro && <div className="aviso aviso-erro" role="alert">{erro}</div>}
@@ -152,11 +160,12 @@ export default function DividasPage() {
           onCancelar={() => setEdicao(null)}
           onSalvar={async (dados) => {
             if (edicao && edicao !== 'nova') await salvar(edicao.id, dados);
-            else await adicionar(dados);
+            else await limites.create('debts', dados);
             setEdicao(null);
           }}
         />
       </Modal>
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="dívidas adicionais" />
     </>
   );
 }

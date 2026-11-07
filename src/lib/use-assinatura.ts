@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
 type StatusAssinatura = { tier: 'free' | 'premium'; status: string; plan: 'mensal' | 'anual' | null };
@@ -10,13 +10,16 @@ export function useAssinatura() {
   const [assinatura, setAssinatura] = useState<StatusAssinatura>({ tier: 'free', status: 'free', plan: null });
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const consultaAtiva = useRef(false);
 
   const atualizar = useCallback(async () => {
+    if (consultaAtiva.current) return;
     if (!user) {
       setAssinatura({ tier: 'free', status: 'free', plan: null });
       setCarregando(false);
       return;
     }
+    consultaAtiva.current = true;
     setCarregando(true);
     setErro('');
     try {
@@ -29,6 +32,7 @@ export function useAssinatura() {
       setAssinatura({ tier: 'free', status: 'unavailable', plan: null });
       setErro(e instanceof Error ? e.message : 'Não foi possível consultar a assinatura.');
     } finally {
+      consultaAtiva.current = false;
       setCarregando(false);
     }
   }, [user]);
@@ -36,6 +40,17 @@ export function useAssinatura() {
   useEffect(() => {
     const timer = window.setTimeout(() => { void atualizar(); }, 0);
     return () => window.clearTimeout(timer);
+  }, [atualizar]);
+
+  useEffect(() => {
+    const aoFocar = () => { void atualizar(); };
+    const aoMudarVisibilidade = () => { if (document.visibilityState === 'visible') void atualizar(); };
+    window.addEventListener('focus', aoFocar);
+    document.addEventListener('visibilitychange', aoMudarVisibilidade);
+    return () => {
+      window.removeEventListener('focus', aoFocar);
+      document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+    };
   }, [atualizar]);
   return { ...assinatura, premium: assinatura.tier === 'premium', carregando, erro, atualizar };
 }

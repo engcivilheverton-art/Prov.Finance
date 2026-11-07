@@ -29,9 +29,13 @@ afterAll(async () => {
 
 describe('isolamento por usuário', () => {
   it('o dono lê e grava seus próprios dados', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users/ana/cartoes/c1'), { nome: 'Nubank' });
+    });
     const db = env.authenticatedContext('ana').firestore();
-    await assertSucceeds(setDoc(doc(db, 'users/ana/cartoes/c1'), { nome: 'Nubank' }));
     await assertSucceeds(getDoc(doc(db, 'users/ana/cartoes/c1')));
+    await assertSucceeds(setDoc(doc(db, 'users/ana/cartoes/c1'), { nome: 'Nubank atualizado' }));
+    await assertFails(setDoc(doc(db, 'users/ana/cartoes/c2'), { nome: 'Novo cartão' }));
   });
 
   it('outro usuário não lê nem grava', async () => {
@@ -53,6 +57,8 @@ describe('isolamento por usuário', () => {
   it('coleções fora de users/ são negadas', async () => {
     const db = env.authenticatedContext('ana').firestore();
     await assertFails(setDoc(doc(db, 'publico/x'), { a: 1 }));
+    await assertFails(setDoc(doc(db, 'users/ana/planLocks/cards'), { revision: 1 }));
+    await assertFails(getDoc(doc(db, 'users/ana/planLocks/cards')));
   });
 });
 
@@ -118,10 +124,15 @@ describe('subcoleções do módulo de cartões e contas fixas', () => {
     await assertFails(deleteDoc(doc(db, caminhoItem)));
   });
 
-  it('dívidas e rendas seguem a mesma regra de dono', async () => {
+  it('criações limitadas passam pelo backend; renda continua disponível diretamente', async () => {
     const ana = env.authenticatedContext('ana').firestore();
     const bia = env.authenticatedContext('bia').firestore();
-    await assertSucceeds(setDoc(doc(ana, 'users/ana/dividas/d1'), { nome: 'Empréstimo', parcelas: [] }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users/ana/dividas/d1'), { nome: 'Empréstimo', parcelas: [] });
+    });
+    await assertFails(setDoc(doc(ana, 'users/ana/dividas/d2'), { nome: 'Outra dívida', parcelas: [] }));
+    await assertFails(setDoc(doc(ana, 'users/ana/fixas/x1'), { nome: 'Conta fixa', valor: 10 }));
+    await assertSucceeds(setDoc(doc(ana, 'users/ana/dividas/d1'), { nome: 'Empréstimo atualizado', parcelas: [] }));
     await assertSucceeds(setDoc(doc(ana, 'users/ana/rendas/r1'), { nome: 'Salário', valor: 1 }));
     await assertFails(getDoc(doc(bia, 'users/ana/dividas/d1')));
     await assertFails(getDoc(doc(bia, 'users/ana/rendas/r1')));

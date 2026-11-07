@@ -3,8 +3,11 @@
 import { useState, type FormEvent } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { Modal } from '@/components/Modal';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useAuth } from '@/lib/auth-context';
 import { useColecao } from '@/lib/colecao';
+import { usePlanLimits } from '@/lib/use-plan-limits';
 import { rotuloYm, ymAtual } from '@/lib/datas';
 import { db } from '@/lib/firebase';
 import { arredondar, brl } from '@/lib/formato';
@@ -26,8 +29,8 @@ function FormFixa({ inicial, onSalvar, onCancelar }: { inicial: ContaFixa | null
     if (d !== undefined && (!Number.isInteger(d) || d < 1 || d > 31)) return setErro('O dia deve ficar entre 1 e 31.');
     try {
       await onSalvar({ nome: nome.trim(), categoria, valor: v, dia: d });
-    } catch {
-      setErro('Não foi possível salvar. Tente novamente.');
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível salvar. Tente novamente.');
     }
   }
 
@@ -50,11 +53,14 @@ function FormFixa({ inicial, onSalvar, onCancelar }: { inicial: ContaFixa | null
 
 export default function FixasPage() {
   const { user } = useAuth();
+  const limites = usePlanLimits();
   const uid = user?.uid;
   const contas = useColecao<ContaFixa>(uid ? ['users', uid, 'fixas'] : null);
   const pagamentos = useColecao<PagamentosFixas>(uid ? ['users', uid, 'fixasPagas'] : null);
   const [ym, setYm] = useState(ymAtual());
   const [edicao, setEdicao] = useState<Com<ContaFixa> | 'nova' | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
+  const podeAdicionar = limites.canAdd('bankAccounts', contas.itens.length);
 
   const pagas = pagamentos.itens.find((p) => p.id === ym)?.pagas ?? {};
   const total = arredondar(contas.itens.reduce((a, c) => a + c.valor, 0));
@@ -90,7 +96,9 @@ export default function FixasPage() {
         <div className="acoes">
           <input type="month" className="mes-input campo" aria-label="Mês de controle" value={ym} onChange={(e) => setYm(e.target.value)}
             style={{ minHeight: 44, padding: '.5rem .7rem', border: '1px solid var(--linha)', borderRadius: 10, background: 'var(--card)', color: 'var(--ink)' }} />
-          <button type="button" className="btn" onClick={() => setEdicao('nova')}>Nova conta</button>
+          <button type="button" className="btn" disabled={limites.carregando} onClick={() => podeAdicionar ? setEdicao('nova') : setUpgrade(true)}>
+            Nova conta {!podeAdicionar && <PremiumBadge />}
+          </button>
         </div>
       </div>
 
@@ -117,11 +125,12 @@ export default function FixasPage() {
           onCancelar={() => setEdicao(null)}
           onSalvar={async (dados) => {
             if (edicao && edicao !== 'nova') await contas.salvar(edicao.id, dados);
-            else await contas.adicionar(dados);
+            else await limites.create('bankAccounts', dados);
             setEdicao(null);
           }}
         />
       </Modal>
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="contas fixas adicionais" />
     </>
   );
 }

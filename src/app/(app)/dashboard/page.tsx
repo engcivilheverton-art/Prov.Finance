@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { CalendarioGastos } from '@/components/CalendarioGastos';
 import { GraficoBarras, GraficoRosca } from '@/components/graficos';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import {
   comprasDoMes, faturasEmAberto, faturasPorMes, gastosPorCategoria, mesesDoPeriodo, serieMensal, totaisDoMes,
   type ItensDaFatura,
@@ -14,12 +16,29 @@ import { chaveDe, useColecoes } from '@/lib/colecoes';
 import { MESES, rotuloCurto, rotuloYm, somarMeses, ymAtual } from '@/lib/datas';
 import { arredondar, brl } from '@/lib/formato';
 import { carregarPerfil } from '@/lib/perfil';
-import { useAssinatura } from '@/lib/use-assinatura';
+import { usePlanLimits } from '@/lib/use-plan-limits';
 import {
   PERFIL_PADRAO, type Cartao, type Com, type ContaFixa, type Divida, type Fatura, type ItemFatura, type Perfil, type Renda,
 } from '@/types/finance';
 
 const CORES_ROSCA = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)'];
+const TIPOS_GRAFICO = [
+  { id: 'projection', title: 'Projeção mensal de despesas e renda' },
+  { id: 'cards', title: 'Faturas de cartões por mês' },
+  { id: 'income', title: 'Renda por mês' },
+  { id: 'balance', title: 'Saldo mensal projetado' },
+  { id: 'categories', title: 'Gastos por categoria' },
+] as const;
+type TipoGrafico = (typeof TIPOS_GRAFICO)[number]['id'];
+const semGraficoNoServidor = () => null;
+function interpretarGraficos(raw: string | null): TipoGrafico[] {
+  if (!raw) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (Array.isArray(value)) return value.filter((item): item is TipoGrafico => TIPOS_GRAFICO.some((tipo) => tipo.id === item));
+  } catch { /* Compatibilidade com a preferência antiga, que guardava um único id sem JSON. */ }
+  return TIPOS_GRAFICO.some((tipo) => tipo.id === raw) ? [raw as TipoGrafico] : [];
+}
 
 function SeletorMes({ ym, onChange }: { ym: string; onChange: (ym: string) => void }) {
   const [ano, mes] = ym.split('-').map(Number);
@@ -36,11 +55,46 @@ function SeletorMes({ ym, onChange }: { ym: string; onChange: (ym: string) => vo
 export default function DashboardPage() {
   const { user } = useAuth();
   const uid = user?.uid;
-  const assinatura = useAssinatura();
+  const assinatura = usePlanLimits();
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [perfilPronto, setPerfilPronto] = useState(false);
   const [ym, setYm] = useState(ymAtual());
   const [filtroCartao, setFiltroCartao] = useState('todos');
+  const [upgrade, setUpgrade] = useState(false);
+  const [substituindoGrafico, setSubstituindoGrafico] = useState(false);
+
+  const subscribeChart = useCallback((notify: () => void) => {
+    if (!uid) return () => undefined;
+    const key = `prov:dashboard:free-chart:${uid}`;
+    const aoAlterarOutraAba = (event: StorageEvent) => { if (event.key === key) notify(); };
+    window.addEventListener('prov-dashboard-chart', notify);
+    window.addEventListener('storage', aoAlterarOutraAba);
+    return () => {
+      window.removeEventListener('prov-dashboard-chart', notify);
+      window.removeEventListener('storage', aoAlterarOutraAba);
+    };
+  }, [uid]);
+  const lerGraficoSalvo = useCallback(() => {
+    if (!uid) return null;
+    try {
+      const stored = localStorage.getItem(`prov:dashboard:free-chart:${uid}`);
+      return TIPOS_GRAFICO.some((item) => item.id === stored) ? stored as TipoGrafico : null;
+    } catch { return null; }
+  }, [uid]);
+  const graficosFree = interpretarGraficos(useSyncExternalStore(subscribeChart, lerGraficoSalvo, semGraficoNoServidor));
+
+  function escolherGrafico(tipo: TipoGrafico) {
+    if (graficosFree.includes(tipo)) return;
+    if (!substituindoGrafico && graficosFree.length >= assinatura.dashboardChartLimit) { setUpgrade(true); return; }
+    if (uid) {
+      try {
+        const next = substituindoGrafico ? [tipo] : [...graficosFree, tipo];
+        localStorage.setItem(`prov:dashboard:free-chart:${uid}`, JSON.stringify(next));
+        window.dispatchEvent(new Event('prov-dashboard-chart'));
+        setSubstituindoGrafico(false);
+      } catch { /* A escolha vale nesta sessão, sem persistência no navegador. */ }
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -78,7 +132,7 @@ export default function DashboardPage() {
   // Lançamentos do mês (calendário e rosca): só são lidos quando o Premium está confirmado.
   const premium = assinatura.premium;
   const faturasDoMes = [ym, somarMeses(ym, 1)];
-  const caminhosItens = premium && uid && !cartoes.carregando
+  const caminhosItens = (premium || (!premium && graficosFree.includes('categories'))) && uid && !cartoes.carregando
     ? cartoes.itens.flatMap((c) => faturasDoMes.map((fy) => ['users', uid, 'cartoes', c.id, 'faturas', fy, 'itens']))
     : null;
   const itensCol = useColecoes<ItemFatura>(caminhosItens);
@@ -153,13 +207,51 @@ export default function DashboardPage() {
       {assinatura.carregando ? (
         <div className="card vazio" aria-busy>Verificando a sua assinatura…</div>
       ) : !premium ? (
-        <div className="card card-corpo bloqueado">
-          <h2>Gráficos e calendário fazem parte do PROV. Premium</h2>
-          <p className="suave" style={{ margin: '.4rem 0 1rem' }}>
-            Acompanhe a evolução de faturas, renda e saldo mês a mês, veja os gastos por categoria e por cartão e o total gasto em cada dia do mês.
-          </p>
-          <Link className="btn" href="/planos" style={{ textDecoration: 'none' }}>Ver planos Premium</Link>
-          {assinatura.erro && <p className="aviso aviso-alerta" role="status" style={{ marginTop: '1rem' }}>{assinatura.erro}</p>}
+        <div className="pilha">
+          <div className="card card-corpo">
+            <h2>{graficosFree.length ? 'Gráficos do plano Free' : 'Escolha gráficos para o painel'}</h2>
+            <p className="suave" style={{ margin: '.4rem 0 1rem' }}>
+              {substituindoGrafico ? 'Escolha qual gráfico ficará visível.' : `O plano Free pode exibir até ${assinatura.dashboardChartLimit} gráfico(s). Os gráficos adicionais e o calendário de gastos são exclusivos do Premium.`}
+            </p>
+            {graficosFree.length > 0 && !substituindoGrafico && <button type="button" className="btn btn-sec btn-mini" style={{ marginBottom: '.8rem' }} onClick={() => setSubstituindoGrafico(true)}>Escolher novamente</button>}
+            <div className="grade-graficos-opcoes" role="group" aria-label="Gráficos do painel">
+              {TIPOS_GRAFICO.map((tipo) => {
+                const selecionado = graficosFree.includes(tipo.id);
+                const bloqueado = !selecionado && graficosFree.length >= assinatura.dashboardChartLimit && !substituindoGrafico;
+                return (
+                  <button key={tipo.id} type="button" className={`btn btn-sec ${selecionado ? 'grafico-selecionado' : ''}`}
+                    aria-pressed={selecionado} onClick={() => bloqueado ? setUpgrade(true) : escolherGrafico(tipo.id)}>
+                    {tipo.title} {selecionado ? '✓' : bloqueado && <PremiumBadge />}
+                  </button>
+                );
+              })}
+            </div>
+            {assinatura.erro && <p className="aviso aviso-alerta" role="status" style={{ marginTop: '1rem' }}>{assinatura.erro}</p>}
+          </div>
+          {graficosFree.length > 0 && meses.length > 0 && graficosFree.map((graficoFree) => (
+            <div className="card" key={graficoFree}>
+              <div className="card-cab"><h2>{TIPOS_GRAFICO.find((tipo) => tipo.id === graficoFree)?.title}</h2></div>
+              <div className="card-corpo">
+                {graficoFree === 'projection' && <GraficoBarras titulo="Projeção mensal de despesas cadastradas (cartões, dívidas e contas fixas) e renda informada" rotulos={rotulos} altura={300} barras={[
+                  { nome: 'Cartões', cor: 'var(--ch-cartoes)', valores: serie.cartoes },
+                  { nome: 'Dívidas', cor: 'var(--ch-dividas)', valores: serie.dividas },
+                  { nome: 'Contas fixas', cor: 'var(--ch-fixas)', valores: serie.fixas },
+                ]} linha={{ nome: 'Renda', cor: 'var(--ch-renda)', valores: serie.renda }} />}
+                {graficoFree === 'cards' && <GraficoBarras titulo="Total de faturas de cartões por mês" rotulos={rotulos} barras={[{ nome: 'Faturas', cor: 'var(--ch-cartoes)', valores: serie.cartoes }]} />}
+                {graficoFree === 'income' && <GraficoBarras titulo="Renda por mês" rotulos={rotulos} barras={[{ nome: 'Renda', cor: 'var(--ch-renda)', valores: serie.renda }]} />}
+                {graficoFree === 'balance' && <GraficoBarras titulo="Saldo mensal projetado: renda informada menos despesas cadastradas" rotulos={rotulos} barras={[{ nome: 'Saldo projetado', cor: 'var(--ch-renda)', valores: serie.balanco }]} />}
+                {graficoFree === 'categories' && <>
+                  <label className="campo" style={{ maxWidth: 280, marginBottom: '1rem' }}><span>Cartão</span>
+                    <select className="filtro" value={filtroValido} onChange={(e) => setFiltroCartao(e.target.value)}>
+                      <option value="todos">Todos os cartões</option>
+                      {cartoes.itens.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                  </label>
+                  {itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                </>}
+              </div>
+            </div>
+          ))}
         </div>
       ) : meses.length === 0 ? (
         <div className="aviso aviso-alerta">O período do perfil está invertido. Ajuste-o em <Link href="/perfil">Meu perfil</Link>.</div>
@@ -222,6 +314,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="gráficos adicionais" />
     </>
   );
 }

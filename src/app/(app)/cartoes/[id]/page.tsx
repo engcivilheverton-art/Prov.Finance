@@ -4,8 +4,10 @@ import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Modal } from '@/components/Modal';
+import { PremiumBadge } from '@/components/PremiumBadge';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import { useAuth } from '@/lib/auth-context';
-import { useAssinatura } from '@/lib/use-assinatura';
+import { usePlanLimits } from '@/lib/use-plan-limits';
 import { resumoCartao } from '@/lib/cartoes';
 import { excluirFatura, FaturaPagaError, PremiumRequiredError, importarItens } from '@/lib/cartoes-db';
 import { useColecao } from '@/lib/colecao';
@@ -105,7 +107,7 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
       const texto = e instanceof FaturaPagaError
         ? `A fatura de ${rotuloYm(ym)} já está paga.`
         : e instanceof PremiumRequiredError
-          ? 'A assinatura Premium não está ativa. Confira seu plano antes de importar.'
+          ? 'Esta funcionalidade é exclusiva do plano Premium.'
           : e instanceof Error
             ? e.message
             : 'Não foi possível importar. Tente novamente.';
@@ -141,7 +143,7 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
 export default function CartaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const assinatura = useAssinatura();
+  const assinatura = usePlanLimits();
   const uid = user?.uid;
   const cartoes = useColecao<Cartao>(uid ? ['users', uid, 'cartoes'] : null);
   const faturasCol = useColecao<Fatura>(uid ? ['users', uid, 'cartoes', id, 'faturas'] : null);
@@ -154,6 +156,7 @@ export default function CartaoDetalhe() {
   const [edicao, setEdicao] = useState<Com<Fatura> | 'nova' | null>(null);
   const [importacao, setImportacao] = useState<ResultadoCsv | null>(null);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
+  const [upgrade, setUpgrade] = useState(false);
 
   async function lerArquivo(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -183,10 +186,10 @@ export default function CartaoDetalhe() {
           <input ref={inputArquivo} type="file" accept=".csv,.txt,text/csv" hidden onChange={(e) => void lerArquivo(e.target.files?.[0])} />
           {assinatura.carregando ? (
             <button type="button" className="btn btn-sec" disabled aria-busy="true">Verificando plano…</button>
-          ) : assinatura.premium ? (
+          ) : assinatura.canUseCsvImport ? (
             <button type="button" className="btn btn-sec" onClick={() => inputArquivo.current?.click()}>Importar CSV</button>
           ) : (
-            <Link className="btn btn-sec" href="/planos" style={{ textDecoration: 'none' }}>Importar CSV · Premium</Link>
+            <button type="button" className="btn btn-sec" onClick={() => setUpgrade(true)}>Importar CSV <PremiumBadge /></button>
           )}
           <button type="button" className="btn" onClick={() => setEdicao('nova')}>Nova fatura</button>
         </div>
@@ -200,6 +203,7 @@ export default function CartaoDetalhe() {
       {!assinatura.carregando && !assinatura.premium && <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>A importação de faturas por CSV é um recurso Premium. Você continua podendo cadastrar e editar faturas manualmente. <Link href="/planos">Conheça os planos</Link>.</div>}
       {assinatura.erro && <div className="aviso aviso-alerta" role="status" style={{ marginBottom: '1rem' }}>{assinatura.erro}</div>}
       {aviso && <div className={`aviso ${aviso.tipo === 'ok' ? 'aviso-ok' : 'aviso-erro'}`} role="status" style={{ marginBottom: '1rem' }}>{aviso.texto}</div>}
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="importação de CSV" />
 
       <div className="card">
         <div className="card-cab"><h2>Faturas</h2></div>

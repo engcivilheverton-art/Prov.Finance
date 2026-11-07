@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan, MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
-import { commitFirestoreDocuments, getFirestoreDocument, listFirestoreCollection, readSubscription, verifyFirebaseIdToken, writeSubscription } from '@/lib/server-billing';
+import { MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
+import { canUseFeature } from '@/lib/planos';
+import { commitFirestoreDocuments, confirmarAcessoPremium, getFirestoreDocument, listFirestoreCollection, verifyFirebaseIdToken } from '@/lib/server-billing';
 
 // A stalled dependency should not consume Vercel's five-minute function limit.
 export const maxDuration = 60;
@@ -28,23 +29,6 @@ function totalGastos(itens: Record<string, unknown>[]) {
 }
 
 type Etapa = <T>(nome: string, operacao: () => Promise<T>) => Promise<T>;
-
-async function confirmarPremium(uid: string, etapa: Etapa) {
-  const assinatura = await etapa('firestore_read_subscription', () => readSubscription(uid));
-  if (!assinatura?.preapprovalId) return false;
-  const remote = await etapa('mercadopago_read_preapproval', () => getPreapproval(assinatura.preapprovalId!));
-  if (remote.id !== assinatura.preapprovalId || remote.external_reference !== uid || !matchesPlan(remote, assinatura.plan)) return false;
-  if (remote.status !== 'authorized') {
-    await etapa('firestore_update_subscription_status', () => writeSubscription(uid, { ...assinatura, status: remote.status ?? 'unknown', providerVersion: remote.version }));
-    return false;
-  }
-  const latestInvoice = await etapa('mercadopago_read_authorized_payment', () => getLatestAuthorizedInvoice(assinatura.preapprovalId!));
-  if (!hasConfirmedLatestInvoice(latestInvoice)) return false;
-  if (assinatura.status !== remote.status || assinatura.providerVersion !== remote.version) {
-    await etapa('firestore_confirm_subscription', () => writeSubscription(uid, { ...assinatura, status: remote.status!, providerVersion: remote.version }));
-  }
-  return true;
-}
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
@@ -75,7 +59,8 @@ export async function POST(request: Request) {
     let user;
     try { user = await etapa('firebase_verify_id_token', () => verifyFirebaseIdToken(idToken)); }
     catch { return NextResponse.json({ error: 'Sua sessão expirou. Entre novamente.' }, { status: 401 }); }
-    if (!await confirmarPremium(user.uid, etapa)) return NextResponse.json({ error: 'A assinatura Premium não está ativa ou não pôde ser confirmada.' }, { status: 403 });
+    const premium = await confirmarAcessoPremium(user.uid, etapa);
+    if (!canUseFeature('csvImport', premium)) return NextResponse.json({ code: 'PREMIUM_REQUIRED', error: 'Esta funcionalidade é exclusiva do plano Premium.' }, { status: 403 });
 
     const body = await etapa('read_request_body', () => request.json().catch(() => ({}))) as { cartaoId?: unknown; ym?: unknown; items?: unknown };
     if (typeof body.cartaoId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.cartaoId)) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });

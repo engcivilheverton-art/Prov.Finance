@@ -42,6 +42,10 @@ h2 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; color: var(--
 .pagina-cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
 .pagina-cab .sub { color: var(--g); font-weight: 700; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .35rem; }
 .acoes { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.premium-badge { display: inline-flex; align-items: center; margin-left: .25rem; font-size: .95em; line-height: 1; }
+.grade-graficos-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; }
+.grade-graficos-opcoes .btn { justify-content: space-between; text-align: left; min-height: 52px; }
+.grade-graficos-opcoes .grafico-selecionado { border-color: var(--g); background: var(--gs); color: var(--g); }
 
 /* Cartões, KPIs e formulários */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; }

@@ -6,10 +6,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     MercadoPagoTimeoutError,
-    getLatestAuthorizedInvoice: vi.fn(),
-    getPreapproval: vi.fn(),
-    hasConfirmedLatestInvoice: vi.fn(),
-    matchesPlan: vi.fn(),
+    confirmarAcessoPremium: vi.fn(),
     commitFirestoreDocuments: vi.fn(),
     getFirestoreDocument: vi.fn(),
     listFirestoreCollection: vi.fn(),
@@ -21,19 +18,14 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/lib/mercadopago-server', () => ({
   MercadoPagoTimeoutError: mocks.MercadoPagoTimeoutError,
-  getLatestAuthorizedInvoice: mocks.getLatestAuthorizedInvoice,
-  getPreapproval: mocks.getPreapproval,
-  hasConfirmedLatestInvoice: mocks.hasConfirmedLatestInvoice,
-  matchesPlan: mocks.matchesPlan,
 }));
 
 vi.mock('@/lib/server-billing', () => ({
   commitFirestoreDocuments: mocks.commitFirestoreDocuments,
+  confirmarAcessoPremium: mocks.confirmarAcessoPremium,
   getFirestoreDocument: mocks.getFirestoreDocument,
   listFirestoreCollection: mocks.listFirestoreCollection,
-  readSubscription: mocks.readSubscription,
   verifyFirebaseIdToken: mocks.verifyFirebaseIdToken,
-  writeSubscription: mocks.writeSubscription,
 }));
 
 import { POST } from '@/app/api/billing/csv-import/route';
@@ -50,17 +42,12 @@ describe('POST /api/billing/csv-import', () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     mocks.verifyFirebaseIdToken.mockResolvedValue({ uid: 'user-1' });
-    mocks.readSubscription.mockResolvedValue({ status: 'authorized', plan: 'mensal', preapprovalId: 'preapproval-1' });
-    mocks.getPreapproval.mockResolvedValue({ id: 'preapproval-1', external_reference: 'user-1', status: 'authorized' });
-    mocks.matchesPlan.mockReturnValue(true);
-    mocks.getLatestAuthorizedInvoice.mockResolvedValue({ id: 'invoice-1' });
-    mocks.hasConfirmedLatestInvoice.mockReturnValue(true);
+    mocks.confirmarAcessoPremium.mockResolvedValue(true);
     mocks.getFirestoreDocument.mockResolvedValueOnce({ nome: 'Cartão' }).mockResolvedValueOnce(null);
     mocks.listFirestoreCollection.mockResolvedValueOnce([]).mockResolvedValueOnce([
       { id: 'item-1', fields: { valor: 25, programado: false } },
     ]);
     mocks.commitFirestoreDocuments.mockResolvedValue(undefined);
-    mocks.writeSubscription.mockResolvedValue(undefined);
   });
 
   it('grava os lançamentos e devolve o total', async () => {
@@ -71,8 +58,16 @@ describe('POST /api/billing/csv-import', () => {
     expect(mocks.commitFirestoreDocuments).toHaveBeenCalledTimes(2);
   });
 
+  it('bloqueia CSV para Free antes de ler qualquer dado financeiro', async () => {
+    mocks.confirmarAcessoPremium.mockResolvedValue(false);
+    const response = await POST(request());
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ code: 'PREMIUM_REQUIRED' });
+    expect(mocks.getFirestoreDocument).not.toHaveBeenCalled();
+  });
+
   it('responde 504 quando o Mercado Pago excede o limite e não deixa a requisição sem resposta', async () => {
-    mocks.getPreapproval.mockRejectedValue(new mocks.MercadoPagoTimeoutError('preapproval'));
+    mocks.confirmarAcessoPremium.mockRejectedValue(new mocks.MercadoPagoTimeoutError('preapproval'));
 
     const response = await POST(request());
 

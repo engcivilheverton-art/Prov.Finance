@@ -5,9 +5,28 @@ export const PLANOS: Record<PlanoId, { id: PlanoId; nome: string; valor: number;
   anual: { id: 'anual', nome: 'Premium anual', valor: 119.88, frequencia: 12, frequenciaTipo: 'months', descricao: 'Cobrança anual' },
 };
 
+/** Limites do plano Free; recursos com `false` são exclusivos do Premium. */
+export const FREE_LIMITS = {
+  cards: 1,
+  bankAccounts: 1,
+  debts: 1,
+  dashboardCharts: 1,
+  csvImport: false,
+} as const;
+
+export type LimitedResource = 'cards' | 'bankAccounts' | 'debts';
+
+export function canAddResource(resource: LimitedResource, currentCount: number, premium: boolean): boolean {
+  return premium || currentCount < FREE_LIMITS[resource];
+}
+
+export function canUseFeature(feature: 'csvImport', premium: boolean): boolean {
+  return premium || FREE_LIMITS[feature];
+}
+
 export const RECURSOS = {
-  free: ['Painel financeiro básico', 'Rendas, dívidas e contas fixas', 'Cartões e faturas', 'Cadastro e edição manual de faturas'],
-  premium: ['Todos os recursos Free', 'Importação de faturas por CSV', 'Gráficos e análises financeiras', 'Calendário de gastos por dia'],
+  free: ['Painel financeiro básico', '1 cartão, 1 conta fixa e 1 dívida', 'Cadastro e edição manual de faturas', '1 gráfico escolhido no painel'],
+  premium: ['Todos os recursos Free', 'Mais cartões, contas fixas e dívidas', 'Importação de faturas por CSV', 'Gráficos e análises financeiras', 'Calendário de gastos por dia'],
 } as const;
 
 export function planoValido(valor: unknown): valor is PlanoId {

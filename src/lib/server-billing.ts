@@ -1,6 +1,8 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { adminAuth, adminDb, FieldValue } from '@/lib/firebase-admin';
+import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan } from '@/lib/mercadopago-server';
+import { FREE_LIMITS } from '@/lib/planos';
 export { hasValidWebhookSignature } from '@/lib/webhook-signature';
 
 export type VerifiedUser = { uid: string; email?: string; name?: string };
@@ -38,6 +40,59 @@ export async function readSubscription(uid: string): Promise<Subscription | null
     providerVersion: typeof data.providerVersion === 'number' ? data.providerVersion : undefined,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
   };
+}
+
+export type BillingStage = <T>(name: string, operation: () => Promise<T>) => Promise<T>;
+
+/** Reuses the application's single authoritative Premium entitlement check. */
+export async function confirmarAcessoPremium(uid: string, etapa: BillingStage = (_name, operation) => operation()): Promise<boolean> {
+  const assinatura = await etapa('firestore_read_subscription', () => readSubscription(uid));
+  if (!assinatura?.preapprovalId) return false;
+  const remote = await etapa('mercadopago_read_preapproval', () => getPreapproval(assinatura.preapprovalId!));
+  if (remote.id !== assinatura.preapprovalId || remote.external_reference !== uid || !matchesPlan(remote, assinatura.plan)) return false;
+  if (remote.status !== 'authorized') {
+    await etapa('firestore_update_subscription_status', () => writeSubscription(uid, { ...assinatura, status: remote.status ?? 'unknown', providerVersion: remote.version }));
+    return false;
+  }
+  const latestInvoice = await etapa('mercadopago_read_authorized_payment', () => getLatestAuthorizedInvoice(assinatura.preapprovalId!));
+  if (!hasConfirmedLatestInvoice(latestInvoice)) return false;
+  if (assinatura.status !== remote.status || assinatura.providerVersion !== remote.version) {
+    await etapa('firestore_confirm_subscription', () => writeSubscription(uid, { ...assinatura, status: remote.status!, providerVersion: remote.version }));
+  }
+  return true;
+}
+
+export class FreePlanLimitError extends Error {
+  readonly code = 'FREE_PLAN_LIMIT_REACHED';
+  constructor(message = 'Limite do plano Free atingido.') { super(message); this.name = 'FreePlanLimitError'; }
+}
+
+const LIMITED_COLLECTIONS = {
+  cards: { collection: 'cartoes' },
+  debts: { collection: 'dividas' },
+  bankAccounts: { collection: 'fixas' },
+} as const;
+
+/** Count existing records and serialize Free creates through a per-user lock document. */
+export async function createLimitedResource(uid: string, resource: keyof typeof LIMITED_COLLECTIONS, fields: Record<string, unknown>, premium: boolean): Promise<string> {
+  const db = adminDb();
+  const config = LIMITED_COLLECTIONS[resource];
+  const limit = FREE_LIMITS[resource];
+  const collection = db.collection(`users/${uid}/${config.collection}`);
+  const ref = collection.doc();
+  if (premium) {
+    await ref.create(fields);
+    return ref.id;
+  }
+
+  const lock = db.doc(`users/${uid}/planLocks/${resource}`);
+  await db.runTransaction(async (transaction) => {
+    const [lockSnapshot, records] = await Promise.all([transaction.get(lock), transaction.get(collection)]);
+    if (records.size >= limit) throw new FreePlanLimitError();
+    transaction.set(lock, { revision: Number(lockSnapshot.get('revision') ?? 0) + 1, updatedAt: new Date().toISOString() });
+    transaction.create(ref, fields);
+  });
+  return ref.id;
 }
 
 export async function writeSubscription(uid: string, subscription: Subscription): Promise<void> {
