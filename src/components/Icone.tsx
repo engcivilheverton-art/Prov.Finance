@@ -7,6 +7,7 @@ const CAMINHOS = {
   rep: (<><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></>),
   user: (<><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>),
   calc: (<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 12h2m4 0h2m-8 4h2m4 0h2" /></>),
+  box: (<><path d="M3 8h18l-1 13H4L3 8Z" /><path d="m3 8 3-5h12l3 5M9 12h6m-3-3v6" /></>),
 };
 
 export type NomeIcone = keyof typeof CAMINHOS;

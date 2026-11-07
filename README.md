@@ -29,6 +29,8 @@ Os valores e a lista de recursos têm uma única fonte no backend, em `src/lib/p
 - Premium anual: R$ 119,88 a cada 12 meses.
 - O plano Free permite até dois cartões, uma conta fixa, uma dívida e um gráfico escolhido; importação CSV, gráficos adicionais e calendário de gastos são Premium. As criações são limitadas também no servidor. Para mudar os limites, ajuste `FREE_LIMITS` em `src/lib/planos.ts`.
 
+- **Caixinhas** organiza o orçamento mensal em envelopes por percentual da renda. Contas fixas e cartões/dívidas usam valores cadastrados; outras categorias podem receber gastos manuais. O recurso está disponível no Free e guarda somente preferências e lançamentos manuais do usuário no Firestore.
+
 Usuários sem `users/{uid}/assinatura/status` são Free. Os dados financeiros existentes não precisam ser migrados nem apagados. As regras do Firestore permitem faturas manuais e impedem o cliente de alterar a assinatura ou gravar lançamentos CSV. O endpoint de importação revalida a assinatura no Mercado Pago.
 
 ## Fluxo de assinatura

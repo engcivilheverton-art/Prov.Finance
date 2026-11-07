@@ -1,0 +1,19 @@
+/* Estilos da seção Caixinhas. Usa só as variáveis de cor que o app já define (globals.css). */
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.caixa { position: relative; overflow: hidden; padding: 1.1rem 1.15rem 1rem; }
+.topo { position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--cor); }
+.cab { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; }
+.icone { display: inline-flex; align-items: center; justify-content: center; width: 2.2rem; height: 2.2rem; border-radius: 10px; flex-shrink: 0; font-size: 1.1rem; background: color-mix(in srgb, var(--cor) 14%, transparent); }
+.nome { flex: 1; font-weight: 700; overflow-wrap: anywhere; }
+.linha { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-bottom: .3rem; font-size: .82rem; color: var(--mut); }
+.linha b { font-size: 1.05rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ok { color: var(--ok-tx) !important; }
+.atencao { color: var(--warn-tx) !important; }
+.estourou { color: var(--err-tx) !important; }
+.preench-ok { background: var(--ok-tx) !important; }
+.preench-atencao { background: var(--warn-tx) !important; }
+.preench-estourou { background: var(--err-tx) !important; }
+.uso { margin: .45rem 0 .8rem; }
+.rodape { display: flex; justify-content: flex-end; }
+.soma { margin-top: .9rem; }
+.rosca-bloco { margin-top: 1rem; }

@@ -11,6 +11,7 @@ const ITENS: { href: string; rotulo: string; icone: NomeIcone }[] = [
   { href: '/cartoes', rotulo: 'Cartões', icone: 'card' },
   { href: '/dividas', rotulo: 'Dívidas', icone: 'cal' },
   { href: '/rendas', rotulo: 'Rendas', icone: 'swap' },
+  { href: '/caixinhas', rotulo: 'Caixinhas', icone: 'box' },
   { href: '/fixas', rotulo: 'Fixas', icone: 'rep' },
   { href: '/ferramentas', rotulo: 'Facilities', icone: 'calc' },
   { href: '/perfil', rotulo: 'Perfil', icone: 'user' },

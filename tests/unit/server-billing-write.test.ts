@@ -74,10 +74,10 @@ describe('commitFirestoreDocuments', () => {
     expect(mocks.txCreate).toHaveBeenCalledWith(mocks.resourceRef, { nome: 'Cartão' });
   });
 
-  it('bloqueia Free ao encontrar um registro existente e deixa Premium sem limite Free', async () => {
+  it('bloqueia Free ao encontrar dois cartões e deixa Premium sem limite Free', async () => {
     mocks.txGet.mockImplementation(async (ref: { path: string }) => ref.path.includes('/planLocks/')
       ? { get: () => 1 }
-      : { size: 1 });
+      : { size: 2 });
     await expect(createLimitedResource('ana', 'cards', { nome: 'Outro' }, false)).rejects.toBeInstanceOf(FreePlanLimitError);
     expect(mocks.txCreate).not.toHaveBeenCalled();
 

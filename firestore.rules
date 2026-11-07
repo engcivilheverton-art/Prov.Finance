@@ -26,6 +26,46 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
+    // Caixinhas — apenas a configuração única e os gastos mensais validados pelo próprio usuário.
+    function percentualCaixinhaValido(m, k) {
+      return k in m && m[k] is number && m[k] >= 0 && m[k] <= 100;
+    }
+    function caixinhasConfigValida(d) {
+      return d.keys().hasOnly(['pct', 'atualizadoEm'])
+        && d.pct is map
+        && d.pct.keys().hasOnly(['fixas', 'cartaoDividas', 'dizimo', 'lazer', 'investimento'])
+        && percentualCaixinhaValido(d.pct, 'fixas')
+        && percentualCaixinhaValido(d.pct, 'cartaoDividas')
+        && percentualCaixinhaValido(d.pct, 'dizimo')
+        && percentualCaixinhaValido(d.pct, 'lazer')
+        && percentualCaixinhaValido(d.pct, 'investimento');
+    }
+    function gastoCaixinhaValido(m, k) {
+      return !(k in m) || (m[k] is number && m[k] >= 0 && m[k] <= 1000000000);
+    }
+    function caixinhasGastosValidos(d) {
+      return d.keys().hasOnly(['valores', 'atualizadoEm'])
+        && d.valores is map
+        && d.valores.keys().hasOnly(['fixas', 'cartaoDividas', 'dizimo', 'lazer', 'investimento'])
+        && gastoCaixinhaValido(d.valores, 'fixas')
+        && gastoCaixinhaValido(d.valores, 'cartaoDividas')
+        && gastoCaixinhaValido(d.valores, 'dizimo')
+        && gastoCaixinhaValido(d.valores, 'lazer')
+        && gastoCaixinhaValido(d.valores, 'investimento');
+    }
+    match /users/{uid}/caixinhas/{docId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && docId == 'config' && caixinhasConfigValida(request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+    match /users/{uid}/caixinhasGastos/{ym} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && ym.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && caixinhasGastosValidos(request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+
     // Assinatura pode ser consultada pelo próprio usuário, mas só o backend (Admin SDK/REST) a altera.
     match /users/{uid}/assinatura/{docId} {
       allow read: if isOwner(uid);
@@ -54,9 +94,9 @@ service cloud.firestore {
 
     // Demais dados financeiros — só o próprio dono. As áreas com regras específicas acima são excluídas.
     match /users/{uid}/{colecao}/{docId=**} {
-      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks';
-      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas';
-      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks';
+      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
+      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
+      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
     }
 
     // Tudo o mais é negado.
