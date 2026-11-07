@@ -44,7 +44,10 @@ h2 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; color: var(--
 .acoes { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .premium-badge { display: inline-flex; align-items: center; margin-left: .25rem; font-size: .95em; line-height: 1; }
 .grade-graficos-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; }
-.grade-graficos-opcoes .btn { justify-content: space-between; text-align: left; min-height: 52px; }
+.grafico-opcao { position: relative; }
+.grafico-opcao .btn { width: 100%; justify-content: space-between; text-align: left; min-height: 52px; }
+.grafico-opcao-dica { position: absolute; z-index: 5; left: .5rem; right: .5rem; bottom: calc(100% + .45rem); padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); box-shadow: var(--sh); font-size: .78rem; line-height: 1.45; opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(.25rem); transition: opacity .15s ease, transform .15s ease, visibility .15s ease; }
+.grafico-opcao:hover .grafico-opcao-dica, .grafico-opcao:focus-within .grafico-opcao-dica { opacity: 1; visibility: visible; transform: translateY(0); }
 .grade-graficos-opcoes .grafico-selecionado { border-color: var(--g); background: var(--gs); color: var(--g); }
 
 /* Cartões, KPIs e formulários */

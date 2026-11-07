@@ -24,9 +24,10 @@ describe('catálogo de assinaturas', () => {
 
 describe('limites do plano Free', () => {
   it('centraliza os limites e libera recursos para Premium', () => {
-    expect(FREE_LIMITS).toMatchObject({ cards: 1, bankAccounts: 1, debts: 1, dashboardCharts: 1, csvImport: false });
+    expect(FREE_LIMITS).toMatchObject({ cards: 2, bankAccounts: 1, debts: 1, dashboardCharts: 1, csvImport: false });
     expect(canAddResource('cards', 0, false)).toBe(true);
-    expect(canAddResource('cards', 1, false)).toBe(false);
+    expect(canAddResource('cards', 1, false)).toBe(true);
+    expect(canAddResource('cards', 2, false)).toBe(false);
     expect(canAddResource('debts', 2, false)).toBe(false);
     expect(canAddResource('bankAccounts', 1, true)).toBe(true);
     expect(canUseFeature('csvImport', false)).toBe(false);

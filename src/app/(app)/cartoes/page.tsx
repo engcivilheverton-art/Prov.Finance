@@ -81,7 +81,7 @@ function FormCartao({ inicial, onSalvar, onCancelar }: { inicial: Cartao | null;
   return (
     <form onSubmit={enviar} className="pilha">
       <div className="grade-2">
-        <div className="campo col-total"><label htmlFor="c-nome">Nome do cartão</label><input id="c-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Bradesco (Heverton)" autoFocus /></div>
+        <div className="campo col-total"><label htmlFor="c-nome">Nome do cartão</label><input id="c-nome" name="nome-cartao" autoComplete="off" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Cartão principal" autoFocus /></div>
         <div className="campo"><label htmlFor="c-band">Bandeira</label><select id="c-band" value={bandeira} onChange={(e) => setBandeira(e.target.value)}>{BANDEIRAS.map((b) => <option key={b}>{b}</option>)}</select></div>
         <div className="campo"><label htmlFor="c-dia">Dia do vencimento</label><input id="c-dia" inputMode="numeric" value={dia} onChange={(e) => setDia(e.target.value)} placeholder="10" /></div>
         <div className="campo col-total"><label htmlFor="c-lim">Limite (R$)</label><input id="c-lim" inputMode="decimal" value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="0,00" /></div>
@@ -133,7 +133,7 @@ export default function CartoesPage() {
           {uid && cartoes.map((c) => <CartaoCard key={c.id} uid={uid} cartao={c} onEditar={() => setEdicao(c)} onExcluir={() => void excluir(c)} />)}
           <button type="button" className="cc cc-novo" onClick={() => podeAdicionar ? setEdicao('novo') : setUpgrade(true)} disabled={limites.carregando}>
             <span style={{ fontSize: '1.6rem' }}>＋</span>Adicionar cartão {!podeAdicionar && <PremiumBadge />}
-            {!limites.premium && <span className="pequeno">{cartoes.length}/1 no Free</span>}
+            {!limites.premium && <span className="pequeno">{cartoes.length}/2 no Free</span>}
           </button>
         </div>
       )}

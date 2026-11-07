@@ -7,7 +7,7 @@ export const PLANOS: Record<PlanoId, { id: PlanoId; nome: string; valor: number;
 
 /** Limites do plano Free; recursos com `false` são exclusivos do Premium. */
 export const FREE_LIMITS = {
-  cards: 1,
+  cards: 2,
   bankAccounts: 1,
   debts: 1,
   dashboardCharts: 1,
@@ -25,7 +25,7 @@ export function canUseFeature(feature: 'csvImport', premium: boolean): boolean {
 }
 
 export const RECURSOS = {
-  free: ['Painel financeiro básico', '1 cartão, 1 conta fixa e 1 dívida', 'Cadastro e edição manual de faturas', '1 gráfico escolhido no painel'],
+  free: ['Painel financeiro básico', '2 cartões, 1 conta fixa e 1 dívida', 'Cadastro e edição manual de faturas', '1 gráfico escolhido no painel'],
   premium: ['Todos os recursos Free', 'Mais cartões, contas fixas e dívidas', 'Importação de faturas por CSV', 'Gráficos e análises financeiras', 'Calendário de gastos por dia'],
 } as const;
 

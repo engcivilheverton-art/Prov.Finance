@@ -10,7 +10,7 @@ import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
 
-const perfilOk = { nome: 'Heverton', anoIni: 2026, mesIni: 1, anoFim: 2027, mesFim: 12 };
+const perfilOk = { nome: 'Pessoa usuária', anoIni: 2026, mesIni: 1, anoFim: 2027, mesFim: 12 };
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({

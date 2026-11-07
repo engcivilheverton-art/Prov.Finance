@@ -33,7 +33,14 @@ export async function POST(request: Request, context: { params: Promise<{ resour
   }
 
   try {
-    const premium = await confirmarAcessoPremium(user.uid);
+    // If Mercado Pago is unavailable, treat the request conservatively as Free:
+    // the server still enforces the Free quota and never grants Premium access.
+    let premium = false;
+    try {
+      premium = await confirmarAcessoPremium(user.uid);
+    } catch (error) {
+      console.warn('Premium validation unavailable; applying Free limits:', error instanceof Error ? error.message : 'unknown');
+    }
     const id = await createLimitedResource(user.uid, key, body.fields, premium);
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {

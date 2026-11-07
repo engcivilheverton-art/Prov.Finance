@@ -23,11 +23,11 @@ import {
 
 const CORES_ROSCA = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)'];
 const TIPOS_GRAFICO = [
-  { id: 'projection', title: 'Projeção mensal de despesas e renda' },
-  { id: 'cards', title: 'Faturas de cartões por mês' },
-  { id: 'income', title: 'Renda por mês' },
-  { id: 'balance', title: 'Saldo mensal projetado' },
-  { id: 'categories', title: 'Gastos por categoria' },
+  { id: 'projection', title: 'Projeção mensal de despesas e renda', description: 'Compara faturas, dívidas e contas fixas com a renda informada em cada mês.' },
+  { id: 'cards', title: 'Faturas de cartões por mês', description: 'Mostra o total das faturas atribuídas a cada mês. Exemplo: R$ 1.200 em novembro e R$ 950 em dezembro.' },
+  { id: 'income', title: 'Renda por mês', description: 'Compara a renda cadastrada ao longo do período. Exemplo: salário e outras rendas mês a mês.' },
+  { id: 'balance', title: 'Saldo mensal projetado', description: 'Calcula renda menos despesas cadastradas. Verde indica saldo positivo; vermelho, saldo negativo.' },
+  { id: 'categories', title: 'Gastos por categoria', description: 'Distribui as compras importadas por CSV entre categorias, como alimentação, transporte e moradia.' },
 ] as const;
 type TipoGrafico = (typeof TIPOS_GRAFICO)[number]['id'];
 const semGraficoNoServidor = () => null;
@@ -219,10 +219,14 @@ export default function DashboardPage() {
                 const selecionado = graficosFree.includes(tipo.id);
                 const bloqueado = !selecionado && graficosFree.length >= assinatura.dashboardChartLimit && !substituindoGrafico;
                 return (
-                  <button key={tipo.id} type="button" className={`btn btn-sec ${selecionado ? 'grafico-selecionado' : ''}`}
-                    aria-pressed={selecionado} onClick={() => bloqueado ? setUpgrade(true) : escolherGrafico(tipo.id)}>
-                    {tipo.title} {selecionado ? '✓' : bloqueado && <PremiumBadge />}
-                  </button>
+                  <div key={tipo.id} className="grafico-opcao">
+                    <button type="button" className={`btn btn-sec ${selecionado ? 'grafico-selecionado' : ''}`}
+                      aria-pressed={selecionado} aria-describedby={`grafico-dica-${tipo.id}`} title={tipo.description}
+                      onClick={() => bloqueado ? setUpgrade(true) : escolherGrafico(tipo.id)}>
+                      {tipo.title} {selecionado ? '✓' : bloqueado && <PremiumBadge />}
+                    </button>
+                    <span id={`grafico-dica-${tipo.id}`} className="grafico-opcao-dica" role="tooltip">{tipo.description}</span>
+                  </div>
                 );
               })}
             </div>
