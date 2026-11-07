@@ -1,87 +1,114 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { deleteField, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { collection, deleteDoc, deleteField, doc, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { normalizarPercentuais } from '@/lib/caixinhas';
-import { PERCENTUAIS_PADRAO, type ChaveCaixinha, type GastosManuais, type Percentuais } from '@/types/caixinhas';
+import { converterConfigLegada } from '@/lib/caixinhas';
+import { useColecao } from '@/lib/colecao';
+import type { CaixinhaUsuario, GastosManuais } from '@/types/caixinhas';
 
-const refConfig = (uid: string) => doc(db, 'users', uid, 'caixinhas', 'config');
-const refGastos = (uid: string, ym: string) => doc(db, 'users', uid, 'caixinhasGastos', ym);
+const refConfigLegada = (uid: string) => doc(db, 'users', uid, 'caixinhas', 'config');
 
-/**
- * Percentuais das caixinhas (documento users/{uid}/caixinhas/config).
- * Sem documento, `pct` é a distribuição padrão e `existe` é falso.
- */
-export function useConfigCaixinhas(uid: string | undefined) {
-  const [estado, setEstado] = useState<{ uid: string | null; pct: Percentuais; existe: boolean; erro: string | null }>({
-    uid: null, pct: PERCENTUAIS_PADRAO, existe: false, erro: null,
-  });
+/** Ouve as caixas por usuário e converte, uma única vez, a antiga configuração fixa. */
+export function useCaixinhasUsuario(uid: string | undefined) {
+  const caixas = useColecao<CaixinhaUsuario>(uid ? ['users', uid, 'caixinhas'] : null);
+  const [legado, setLegado] = useState<{ uid: string; dados: Record<string, unknown> | null } | null>(null);
+  const migracoes = useRef(new Set<string>());
 
   useEffect(() => {
     if (!uid) return;
-    return onSnapshot(
-      refConfig(uid),
-      (snap) => setEstado({
-        uid,
-        pct: snap.exists() ? normalizarPercentuais((snap.data() as { pct?: unknown }).pct) : { ...PERCENTUAIS_PADRAO },
-        existe: snap.exists(),
-        erro: null,
-      }),
-      () => setEstado({ uid, pct: { ...PERCENTUAIS_PADRAO }, existe: false, erro: 'Não foi possível carregar os percentuais das caixinhas.' }),
-    );
+    return onSnapshot(refConfigLegada(uid), (snap) => {
+      setLegado({ uid, dados: snap.exists() ? snap.data() as Record<string, unknown> : null });
+    }, () => setLegado({ uid, dados: null }));
   }, [uid]);
 
-  const pronto = !!uid && estado.uid === uid;
+  const configAtual = legado?.uid === uid ? legado?.dados ?? null : null;
+  const candidatas = useMemo(() => caixas.itens.filter((c) => c.id !== 'config'), [caixas.itens]);
 
-  const salvar = useCallback(async (pct: Percentuais) => {
+  useEffect(() => {
+    if (!uid || !configAtual || configAtual.migrado === true || caixas.carregando || candidatas.length > 0) return;
+    const antigas = converterConfigLegada(configAtual);
+    if (!antigas || migracoes.current.has(uid)) return;
+    migracoes.current.add(uid);
+    const batch = writeBatch(db);
+    for (const { id, dados } of antigas) batch.set(doc(db, 'users', uid, 'caixinhas', id), { ...dados, atualizadoEm: serverTimestamp() });
+    batch.set(refConfigLegada(uid), { migrado: true, atualizadoEm: serverTimestamp() }, { merge: true });
+    void batch.commit().catch(() => migracoes.current.delete(uid));
+  }, [uid, configAtual, caixas.carregando, candidatas.length]);
+
+  const salvar = useCallback(async (id: string, dados: Omit<CaixinhaUsuario, 'atualizadoEm'>) => {
     if (!uid) throw new Error('Sem usuário autenticado.');
-    await setDoc(refConfig(uid), { pct, atualizadoEm: serverTimestamp() });
+    await setDoc(doc(db, 'users', uid, 'caixinhas', id), { ...dados, atualizadoEm: serverTimestamp() });
   }, [uid]);
+
+  const arquivar = useCallback(async (id: string) => {
+    if (!uid) throw new Error('Sem usuário autenticado.');
+    await setDoc(doc(db, 'users', uid, 'caixinhas', id), { ativa: false, atualizadoEm: serverTimestamp() }, { merge: true });
+  }, [uid]);
+
+  const restaurar = useCallback(async (id: string) => {
+    if (!uid) throw new Error('Sem usuário autenticado.');
+    await setDoc(doc(db, 'users', uid, 'caixinhas', id), { ativa: true, atualizadoEm: serverTimestamp() }, { merge: true });
+  }, [uid]);
+
+  const dadosLegados = configAtual && configAtual.migrado !== true ? converterConfigLegada(configAtual) : null;
+  const itens = candidatas.length > 0
+    ? candidatas
+    : (caixas.carregando ? [] : (dadosLegados ?? []).map(({ id, dados }) => ({ id, ...dados })));
 
   return {
-    pct: pronto ? estado.pct : PERCENTUAIS_PADRAO,
-    existe: pronto ? estado.existe : false,
-    carregando: !!uid && !pronto,
-    erro: pronto ? estado.erro : null,
+    itens,
+    carregando: caixas.carregando || (!!uid && legado?.uid !== uid),
+    erro: caixas.erro,
     salvar,
+    arquivar,
+    restaurar,
   };
 }
 
-/**
- * Gastos lançados à mão em um mês (documento users/{uid}/caixinhasGastos/{AAAA-MM}).
- * Um valor lançado substitui o cálculo automático daquela caixinha naquele mês.
- */
+/** Gasto manual por mês e caixa; também lê os lançamentos antigos durante a migração. */
 export function useGastosManuais(uid: string | undefined, ym: string) {
   const chave = uid ? `${uid}/${ym}` : null;
-  const [estado, setEstado] = useState<{ chave: string | null; valores: GastosManuais['valores']; erro: string | null }>({
-    chave: null, valores: {}, erro: null,
-  });
+  const [estado, setEstado] = useState<{ chave: string | null; modernos: GastosManuais; antigos: GastosManuais; erro: string | null }>({ chave: null, modernos: {}, antigos: {}, erro: null });
 
   useEffect(() => {
     if (!uid || !chave) return;
-    return onSnapshot(
-      refGastos(uid, ym),
-      (snap) => setEstado({ chave, valores: snap.exists() ? ((snap.data() as GastosManuais).valores ?? {}) : {}, erro: null }),
-      () => setEstado({ chave, valores: {}, erro: 'Não foi possível carregar os gastos lançados.' }),
-    );
+    const col = collection(db, 'users', uid, 'caixinhasGastos');
+    const unsubNovo = onSnapshot(query(col, where('ym', '==', ym)), (snap) => {
+      const novos: GastosManuais = {};
+      for (const d of snap.docs) {
+        const item = d.data();
+        if (typeof item.caixinhaId === 'string' && typeof item.valor === 'number') novos[item.caixinhaId] = item.valor;
+      }
+      setEstado((s) => ({ chave, modernos: novos, antigos: s.chave === chave ? s.antigos : {}, erro: null }));
+    }, () => setEstado((s) => ({ ...s, chave, erro: 'Não foi possível carregar os gastos lançados.' })));
+    const unsubAntigo = onSnapshot(doc(db, 'users', uid, 'caixinhasGastos', ym), (snap) => {
+      const antigos = snap.exists() ? (snap.data().valores as GastosManuais | undefined) ?? {} : {};
+      setEstado((s) => ({ chave, modernos: s.chave === chave ? s.modernos : {}, antigos, erro: null }));
+    }, () => setEstado((s) => ({ ...s, chave, erro: 'Não foi possível carregar os gastos lançados.' })));
+    return () => { unsubNovo(); unsubAntigo(); };
   }, [uid, ym, chave]);
 
   const pronto = chave !== null && estado.chave === chave;
-
-  const definir = useCallback(async (k: ChaveCaixinha, valor: number) => {
+  const definir = useCallback(async (id: string, valor: number) => {
     if (!uid) throw new Error('Sem usuário autenticado.');
-    await setDoc(refGastos(uid, ym), { valores: { [k]: valor }, atualizadoEm: serverTimestamp() }, { merge: true });
+    const gastoId = `${ym}_${id}`;
+    await setDoc(doc(db, 'users', uid, 'caixinhasGastos', gastoId), { ym, caixinhaId: id, valor, atualizadoEm: serverTimestamp() });
+  }, [uid, ym]);
+  const limpar = useCallback(async (id: string) => {
+    if (!uid) throw new Error('Sem usuário autenticado.');
+    await Promise.all([
+      deleteDoc(doc(db, 'users', uid, 'caixinhasGastos', `${ym}_${id}`)),
+      ...(['fixas', 'cartaoDividas', 'dizimo', 'lazer', 'investimento'].includes(id)
+        ? [setDoc(doc(db, 'users', uid, 'caixinhasGastos', ym), { valores: { [id]: deleteField() }, atualizadoEm: serverTimestamp() }, { merge: true })]
+        : []),
+    ]);
   }, [uid, ym]);
 
-  /** Remove o valor lançado; a caixinha volta ao cálculo automático (ou a "nenhum gasto lançado"). */
-  const limpar = useCallback(async (k: ChaveCaixinha) => {
-    if (!uid) throw new Error('Sem usuário autenticado.');
-    await setDoc(refGastos(uid, ym), { valores: { [k]: deleteField() }, atualizadoEm: serverTimestamp() }, { merge: true });
-  }, [uid, ym]);
+  const valores = pronto ? { ...estado.antigos, ...estado.modernos } : {};
 
   return {
-    valores: pronto ? estado.valores : {},
+    valores,
     carregando: chave !== null && !pronto,
     erro: pronto ? estado.erro : null,
     definir,

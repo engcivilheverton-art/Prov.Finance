@@ -14,6 +14,13 @@
 .preench-atencao { background: var(--warn-tx) !important; }
 .preench-estourou { background: var(--err-tx) !important; }
 .uso { margin: .45rem 0 .8rem; }
-.rodape { display: flex; justify-content: flex-end; }
+.rodape { display: flex; justify-content: flex-end; align-items: center; gap: .4rem; flex-wrap: wrap; }
 .soma { margin-top: .9rem; }
 .rosca-bloco { margin-top: 1rem; }
+.vazio { display: flex; flex-direction: column; align-items: center; gap: .7rem; margin-top: 1.25rem; padding: 2.5rem 1.25rem; text-align: center; }
+.vazio h2 { margin: 0; font-size: 1.2rem; }
+.vazio p { max-width: 38rem; margin: 0 0 .3rem; color: var(--mut); }
+.vazioIcone { font-size: 2.5rem; }
+.arquivadas { margin-top: 1.5rem; }
+.arquivadas h2 { margin: 0; font-size: 1.05rem; }
+.arquivada { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }

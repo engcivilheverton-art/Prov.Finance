@@ -47,6 +47,28 @@ describe('caixinhas/config', () => {
   });
 });
 
+describe('caixinhas personalizadas', () => {
+  const caixaRef = (uid: string, id: string) => doc(env.authenticatedContext(uid).firestore(), `users/${uid}/caixinhas/${id}`);
+
+  it('permite criar e arquivar uma caixa válida e rejeita nome ou percentual inválido', async () => {
+    const ref = caixaRef('ana', 'viagem');
+    const caixa = { nome: 'Viagem', percentual: 15, icone: '✈️', cor: '#2563EB', origem: 'manual', ativa: true };
+    await assertSucceeds(setDoc(ref, caixa));
+    await assertSucceeds(setDoc(ref, { ativa: false }, { merge: true }));
+    await assertFails(setDoc(caixaRef('ana', 'errada'), { ...caixa, percentual: 101 }));
+    await assertFails(setDoc(caixaRef('ana', 'vazia'), { ...caixa, nome: '' }));
+    await assertFails(setDoc(caixaRef('ana', 'cor'), { ...caixa, cor: 'azul' }));
+  });
+
+  it('permite registrar gasto mensal somente em caixa própria existente', async () => {
+    await assertSucceeds(setDoc(caixaRef('ana', 'viagem'), { nome: 'Viagem', percentual: 15, icone: '✈️', cor: '#2563EB', origem: 'manual', ativa: true }));
+    const gastos = env.authenticatedContext('ana').firestore();
+    await assertSucceeds(setDoc(doc(gastos, 'users/ana/caixinhasGastos/2026-11_viagem'), { ym: '2026-11', caixinhaId: 'viagem', valor: 125.5 }));
+    await assertFails(setDoc(doc(gastos, 'users/ana/caixinhasGastos/2026-11_desconhecida'), { ym: '2026-11', caixinhaId: 'desconhecida', valor: 10 }));
+    await assertFails(setDoc(doc(gastos, 'users/ana/caixinhasGastos/2026-11_viagem'), { ym: '2026-11', caixinhaId: 'viagem', valor: -1 }));
+  });
+});
+
 describe('caixinhasGastos/{AAAA-MM}', () => {
   const ref = (uid: string, ym: string) => doc(env.authenticatedContext(uid).firestore(), `users/${uid}/caixinhasGastos/${ym}`);
 

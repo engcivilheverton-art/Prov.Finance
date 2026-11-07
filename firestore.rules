@@ -26,43 +26,59 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
-    // Caixinhas — apenas a configuração única e os gastos mensais validados pelo próprio usuário.
-    function percentualCaixinhaValido(m, k) {
-      return k in m && m[k] is number && m[k] >= 0 && m[k] <= 100;
-    }
-    function caixinhasConfigValida(d) {
-      return d.keys().hasOnly(['pct', 'atualizadoEm'])
+    // Caixinhas — cada caixa pertence ao usuário e tem nome/percentual próprios.
+    function percentualValido(v) { return v is number && v >= 0 && v <= 100; }
+    function caixaLegadaValida(d) {
+      return d.keys().hasOnly(['pct', 'atualizadoEm', 'migrado'])
         && d.pct is map
         && d.pct.keys().hasOnly(['fixas', 'cartaoDividas', 'dizimo', 'lazer', 'investimento'])
-        && percentualCaixinhaValido(d.pct, 'fixas')
-        && percentualCaixinhaValido(d.pct, 'cartaoDividas')
-        && percentualCaixinhaValido(d.pct, 'dizimo')
-        && percentualCaixinhaValido(d.pct, 'lazer')
-        && percentualCaixinhaValido(d.pct, 'investimento');
+        && percentualValido(d.pct.fixas)
+        && percentualValido(d.pct.cartaoDividas)
+        && percentualValido(d.pct.dizimo)
+        && percentualValido(d.pct.lazer)
+        && percentualValido(d.pct.investimento)
+        && (!('migrado' in d) || d.migrado is bool);
     }
-    function gastoCaixinhaValido(m, k) {
-      return !(k in m) || (m[k] is number && m[k] >= 0 && m[k] <= 1000000000);
+    function caixaUsuarioValida(d) {
+      return d.keys().hasOnly(['nome', 'percentual', 'icone', 'cor', 'origem', 'ativa', 'atualizadoEm'])
+        && d.nome is string && d.nome.size() > 0 && d.nome.size() <= 40
+        && percentualValido(d.percentual)
+        && d.icone is string && d.icone.size() <= 8
+        && d.cor is string && d.cor.matches('^#[0-9A-Fa-f]{6}$')
+        && d.origem in ['manual', 'fixas', 'cartaoDividas']
+        && d.ativa is bool;
     }
-    function caixinhasGastosValidos(d) {
+    function gastoLegadoValido(d) {
       return d.keys().hasOnly(['valores', 'atualizadoEm'])
         && d.valores is map
         && d.valores.keys().hasOnly(['fixas', 'cartaoDividas', 'dizimo', 'lazer', 'investimento'])
-        && gastoCaixinhaValido(d.valores, 'fixas')
-        && gastoCaixinhaValido(d.valores, 'cartaoDividas')
-        && gastoCaixinhaValido(d.valores, 'dizimo')
-        && gastoCaixinhaValido(d.valores, 'lazer')
-        && gastoCaixinhaValido(d.valores, 'investimento');
+        && (!('fixas' in d.valores) || (d.valores.fixas is number && d.valores.fixas >= 0))
+        && (!('cartaoDividas' in d.valores) || (d.valores.cartaoDividas is number && d.valores.cartaoDividas >= 0))
+        && (!('dizimo' in d.valores) || (d.valores.dizimo is number && d.valores.dizimo >= 0))
+        && (!('lazer' in d.valores) || (d.valores.lazer is number && d.valores.lazer >= 0))
+        && (!('investimento' in d.valores) || (d.valores.investimento is number && d.valores.investimento >= 0));
+    }
+    function gastoUsuarioValido(uid, id, d) {
+      return d.keys().hasOnly(['ym', 'caixinhaId', 'valor', 'atualizadoEm'])
+        && d.ym is string && d.ym.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && d.caixinhaId is string && d.caixinhaId.size() > 0 && d.caixinhaId.size() <= 64
+        && id == d.ym + '_' + d.caixinhaId
+        && d.valor is number && d.valor >= 0 && d.valor <= 1000000000
+        && exists(/databases/$(database)/documents/users/$(uid)/caixinhas/$(d.caixinhaId));
     }
     match /users/{uid}/caixinhas/{docId} {
       allow read: if isOwner(uid);
-      allow create, update: if isOwner(uid) && docId == 'config' && caixinhasConfigValida(request.resource.data);
+      allow create, update: if isOwner(uid) && (
+        (docId == 'config' && caixaLegadaValida(request.resource.data))
+        || (docId.matches('^[A-Za-z0-9_-]{1,64}$') && docId != 'config' && caixaUsuarioValida(request.resource.data))
+      );
       allow delete: if isOwner(uid);
     }
-    match /users/{uid}/caixinhasGastos/{ym} {
+    match /users/{uid}/caixinhasGastos/{id} {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid)
-        && ym.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
-        && caixinhasGastosValidos(request.resource.data);
+        && ((id.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') && gastoLegadoValido(request.resource.data))
+          || (id.matches('^[0-9]{4}-(0[1-9]|1[0-2])_[A-Za-z0-9_-]{1,64}$') && gastoUsuarioValido(uid, id, request.resource.data)));
       allow delete: if isOwner(uid);
     }
 
