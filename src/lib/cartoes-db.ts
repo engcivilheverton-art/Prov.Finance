@@ -16,7 +16,7 @@ async function apagarEmLotes(refs: { ref: ReturnType<typeof doc> }[]) {
 }
 
 export class FaturaPagaError extends Error {
-  constructor() { super('FATURA_PAGA'); }
+  constructor(message = 'Esta fatura já está paga.') { super(message); }
 }
 
 export class PremiumRequiredError extends Error {
@@ -55,11 +55,11 @@ export async function importarItens(uid: string, cartaoId: string, ym: string, i
   } finally {
     clearTimeout(timeout);
   }
-  const data = await response.json().catch(() => ({})) as { novos?: number; ignorados?: number; total?: number; error?: string };
+  const data = await response.json().catch(() => ({})) as { novos?: number; ignorados?: number; total?: number; futuras?: { ym: string; quantidade: number }[]; error?: string };
   if (response.status === 403) throw new PremiumRequiredError();
-  if (response.status === 409) throw new FaturaPagaError();
+  if (response.status === 409) throw new FaturaPagaError(data.error);
   if (!response.ok || typeof data.total !== 'number') throw new Error(data.error || 'Falha ao importar CSV.');
-  return { novos: data.novos ?? 0, ignorados: data.ignorados ?? 0, total: data.total };
+  return { novos: data.novos ?? 0, ignorados: data.ignorados ?? 0, total: data.total, futuras: data.futuras ?? [] };
 }
 
 export async function excluirFatura(uid: string, cartaoId: string, ym: string) {

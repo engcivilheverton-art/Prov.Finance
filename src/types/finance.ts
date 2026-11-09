@@ -45,6 +45,7 @@ export type ItemFatura = {
   parcela?: string;
   valor: number; // positivo = gasto, negativo = pagamento/estorno
   programado?: boolean; // parcelamento futuro (não entra no total da fatura)
+  competenciaYm?: string; // mês em que a parcela entra na fatura, mesmo com a data original da compra
 };
 
 export type ParcelaDivida = { ym: string; valor: number; paga: boolean };

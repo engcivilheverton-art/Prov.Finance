@@ -2,12 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
 import { canUseFeature } from '@/lib/planos';
+import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
 import { commitFirestoreDocuments, confirmarAcessoPremium, getFirestoreDocument, listFirestoreCollection, verifyFirebaseIdToken } from '@/lib/server-billing';
 
 // A stalled dependency should not consume Vercel's five-minute function limit.
 export const maxDuration = 60;
 
-type ItemCsv = { data: string; descricao: string; parcela?: string; valor: number; programado?: boolean };
+type ItemCsv = { data: string; descricao: string; parcela?: string; valor: number; programado?: boolean; competenciaYm?: string };
 function hash(texto: string): string {
   let h = 2166136261;
   for (let i = 0; i < texto.length; i++) { h ^= texto.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -80,23 +81,42 @@ export async function POST(request: Request) {
     const base = `users/${user.uid}/cartoes/${body.cartaoId}`;
     const card = await etapa('firestore_read_card', () => getFirestoreDocument(base));
     if (!card) return NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
-    const invoicePath = `${base}/faturas/${body.ym}`;
-    const invoice = await etapa('firestore_read_invoice', () => getFirestoreDocument(invoicePath));
-    if (invoice?.status === 'Pago') return NextResponse.json({ error: 'Esta fatura já está paga.' }, { status: 409 });
+    let faturasPlanejadas;
+    try { faturasPlanejadas = distribuirParcelamentos(items, body.ym); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas.' }, { status: 400 }); }
 
-    const itemsPath = `${invoicePath}/itens`;
-    const existing = await etapa('firestore_read_existing_items', () => listFirestoreCollection(itemsPath));
-    const existingIds = new Set(existing.map((item) => item.id));
-    const identified = identificar(items);
-    const newItems = identified.filter((item) => !existingIds.has(item.id));
-    await etapa('firestore_write_items', () => commitFirestoreDocuments(newItems.map(({ id, ...fields }) => ({ path: `${itemsPath}/${id}`, fields: fields as Record<string, unknown>, createOnly: true }))));
-    // Soma a coleção efetivamente persistida. Isso mantém o total correto se duas
-    // importações iguais chegarem simultaneamente ou se uma tentativa for repetida.
-    const persistedItems = await etapa('firestore_read_saved_items', () => listFirestoreCollection(itemsPath));
-    const total = totalGastos(persistedItems.map((item) => item.fields));
-    const status = invoice?.status === 'Pago' ? 'Pago' : 'Pendente';
-    await etapa('firestore_write_invoice_total', () => commitFirestoreDocuments([{ path: invoicePath, fields: { valor: total, status, origem: 'csv', atualizadaEm: new Date().toISOString() } }]));
-    return NextResponse.json({ novos: newItems.length, ignorados: identified.length - newItems.length, total });
+    const destinos = await etapa('firestore_read_target_invoices', () => Promise.all(faturasPlanejadas.map(async (fatura) => ({
+      ...fatura,
+      path: `${base}/faturas/${fatura.ym}`,
+      invoice: await getFirestoreDocument(`${base}/faturas/${fatura.ym}`),
+    }))));
+    const paga = destinos.find((destino) => destino.invoice?.status === 'Pago');
+    if (paga) return NextResponse.json({ error: `A fatura de ${paga.ym} já está paga.` }, { status: 409 });
+
+    let novos = 0;
+    let ignorados = 0;
+    let totalAtual = 0;
+    const futuras: { ym: string; quantidade: number }[] = [];
+    for (const destino of destinos) {
+      const itemsPath = `${destino.path}/itens`;
+      const existing = await etapa('firestore_read_existing_items', () => listFirestoreCollection(itemsPath));
+      const existingIds = new Set(existing.map((item) => item.id));
+      const identified = identificar(destino.itens);
+      const newItems = identified.filter((item) => !existingIds.has(item.id));
+      novos += newItems.length;
+      ignorados += identified.length - newItems.length;
+      await etapa('firestore_write_items', () => commitFirestoreDocuments(newItems.map(({ id, ...fields }) => ({ path: `${itemsPath}/${id}`, fields: fields as Record<string, unknown>, createOnly: true }))));
+      // Soma a coleção efetivamente persistida para manter totais corretos em reimportações.
+      const persistedItems = await etapa('firestore_read_saved_items', () => listFirestoreCollection(itemsPath));
+      const total = totalGastos(persistedItems.map((item) => item.fields));
+      if (destino.ym === body.ym) totalAtual = total;
+      else futuras.push({ ym: destino.ym, quantidade: newItems.length });
+      await etapa('firestore_write_invoice_total', () => commitFirestoreDocuments([{
+        path: destino.path,
+        fields: { valor: total, status: destino.invoice?.status ?? 'Pendente', origem: 'csv', atualizadaEm: new Date().toISOString() },
+      }]));
+    }
+    return NextResponse.json({ novos, ignorados, total: totalAtual, futuras: futuras.filter((fatura) => fatura.quantidade > 0) });
   } catch (error) {
     const timedOut = error instanceof MercadoPagoTimeoutError;
     console.error('CSV import failed', {

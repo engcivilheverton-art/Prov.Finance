@@ -98,6 +98,16 @@ export function dataDaCompra(dataDDMM: string, ymFatura: string): string | null 
   return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 
+function dataDaCompetencia(dataDDMM: string, competenciaYm: string): string | null {
+  const m = dataDDMM.match(/^\d{2}\/(\d{2})$/);
+  if (!m) return null;
+  const diaOriginal = Number(dataDDMM.slice(0, 2));
+  const [ano, mes] = competenciaYm.split('-').map(Number);
+  if (!ano || mes < 1 || mes > 12) return null;
+  const dia = Math.min(diaOriginal, new Date(ano, mes, 0).getDate());
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
 export type ItensDaFatura = { cartaoId: string; cartaoNome: string; ymFatura: string; itens: Com<ItemFatura>[] };
 
 /** Gastos (sem pagamentos, estornos nem parcelamentos futuros) cuja data real cai no mês `ym`. */
@@ -106,7 +116,7 @@ export function comprasDoMes(fontes: ItensDaFatura[], ym: string): Compra[] {
   for (const f of fontes) {
     for (const it of f.itens) {
       if (it.programado || !(it.valor > 0)) continue;
-      const dataIso = dataDaCompra(it.data, f.ymFatura);
+      const dataIso = it.competenciaYm ? dataDaCompetencia(it.data, it.competenciaYm) : dataDaCompra(it.data, f.ymFatura);
       if (!dataIso || !dataIso.startsWith(ym)) continue;
       out.push({ id: `${f.cartaoId}:${f.ymFatura}:${it.id}`, cartaoId: f.cartaoId, cartaoNome: f.cartaoNome, dataIso, descricao: it.descricao, parcela: it.parcela, valor: it.valor });
     }
