@@ -33,6 +33,12 @@ Os valores e a lista de recursos têm uma única fonte no backend, em `src/lib/p
 
 Usuários sem `users/{uid}/assinatura/status` são Free. Os dados financeiros existentes não precisam ser migrados nem apagados. As regras do Firestore permitem faturas manuais e impedem o cliente de alterar a assinatura ou gravar lançamentos CSV. O endpoint de importação revalida a assinatura no Mercado Pago.
 
+### Categorias de lançamentos CSV
+
+As categorias e regras por estabelecimento são privadas em `users/{uid}/categorias` e `users/{uid}/regrasCategoria`; os documentos de lançamentos CSV permanecem imutáveis para o cliente. Regras usam um SHA-256 da descrição normalizada sem sufixo de parcela, e as categorias padrão são semeadas uma única vez com IDs determinísticos. Editar categorias exige Premium na interface, usando a confirmação existente de `usePlanLimits`; o Firestore valida a estrutura e o dono, sem consultar o plano.
+
+Limites técnicos antiabuso (não são limites de plano), centralizados em `src/lib/categorias.ts`: 50 categorias, 30 caracteres por nome, 100 palavras-chave por categoria, 40 caracteres por palavra, 5.000 regras por usuário e 200 caracteres por chave de regra. As regras do Firestore também validam formato/tamanho de documentos e lista de palavras; os limites que dependem de contagem são aplicados pelo hook do cliente.
+
 ## Fluxo de assinatura
 
 1. A landing direciona o visitante para `/cadastro` (grátis) ou `/cadastro?plano=mensal|anual`.

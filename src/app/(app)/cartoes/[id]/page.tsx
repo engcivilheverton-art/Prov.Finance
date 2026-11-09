@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { Modal } from '@/components/Modal';
 import { PremiumBadge } from '@/components/PremiumBadge';
 import { UpgradeModal } from '@/components/UpgradeModal';
+import { GerenciadorCategorias, ResumoCategorias, SeletorCategoria } from '@/components/CategoriasCSV';
 import { useAuth } from '@/lib/auth-context';
 import { usePlanLimits } from '@/lib/use-plan-limits';
 import { resumoCartao } from '@/lib/cartoes';
@@ -14,12 +15,18 @@ import { useColecao } from '@/lib/colecao';
 import { decodificar, lerCsv, NOMES_BANCO, sugerirMesFatura, totalGastos, type ResultadoCsv } from '@/lib/csv';
 import { MESES, montarYm, rotuloYm, ymAtual } from '@/lib/datas';
 import { brl } from '@/lib/formato';
+import { SEM_CATEGORIA, type CategoriaComId } from '@/lib/categorias';
+import { useCategorias } from '@/lib/use-categorias';
 import type { Cartao, Com, Fatura, ItemFatura } from '@/types/finance';
 
 type Aviso = { tipo: 'ok' | 'erro'; texto: string };
 
-function Lancamentos({ uid, cartaoId, ym }: { uid: string; cartaoId: string; ym: string }) {
+function Lancamentos({ uid, cartaoId, ym, categorias, premium, categoriaDe, onDefinirRegra, onUpgrade }: {
+  uid: string; cartaoId: string; ym: string; categorias: CategoriaComId[]; premium: boolean;
+  categoriaDe: (descricao: string) => string; onDefinirRegra: (descricao: string, categoriaId: string | null) => Promise<void>; onUpgrade: () => void;
+}) {
   const { itens, carregando } = useColecao<ItemFatura>(['users', uid, 'cartoes', cartaoId, 'faturas', ym, 'itens']);
+  const [erroCategoria, setErroCategoria] = useState('');
   if (carregando) return <p className="suave pequeno">Carregando lançamentos…</p>;
   if (!itens.length) return <p className="suave pequeno">Nenhum lançamento importado para esta fatura.</p>;
 
@@ -30,8 +37,18 @@ function Lancamentos({ uid, cartaoId, ym }: { uid: string; cartaoId: string; ym:
     { titulo: 'Parcelamentos futuros (não entram no total)', lista: itens.filter((i) => i.programado).sort(ordenar) },
   ].filter((g) => g.lista.length);
 
+  async function alterarCategoria(descricao: string, categoriaId: string | null) {
+    if (!premium) { onUpgrade(); return; }
+    setErroCategoria('');
+    try { await onDefinirRegra(descricao, categoriaId); }
+    catch (e) { setErroCategoria(e instanceof Error ? e.message : 'Não foi possível salvar a categoria.'); }
+  }
+
   return (
     <div>
+      <ResumoCategorias itens={itens} categoriaDe={categoriaDe} />
+      {erroCategoria && <div className="aviso aviso-erro" role="alert">{erroCategoria}</div>}
+      <p className="suave pequeno">A categoria escolhida cria uma regra para este estabelecimento, incluindo parcelas e próximas importações.</p>
       {grupos.map((g) => (
         <div key={g.titulo}>
           <div className="grupo-titulo">{g.titulo} · {g.lista.length}</div>
@@ -39,7 +56,11 @@ function Lancamentos({ uid, cartaoId, ym }: { uid: string; cartaoId: string; ym:
             {g.lista.map((i) => (
               <tr key={i.id}>
                 <td>{i.data}</td>
-                <td>{i.descricao}{i.parcela && <span className="selo selo-azul" style={{ marginLeft: '.4rem' }}>{i.parcela}</span>}</td>
+                <td className={!i.programado && i.valor > 0 && categoriaDe(i.descricao) === SEM_CATEGORIA ? 'categoria-item-sem' : ''}>
+                  {i.descricao}{i.parcela && <span className="selo selo-azul" style={{ marginLeft: '.4rem' }}>{i.parcela}</span>}
+                </td>
+                <td><SeletorCategoria item={i} categoria={categoriaDe(i.descricao)} categorias={categorias} premium={premium}
+                  onChange={(categoriaId) => void alterarCategoria(i.descricao, categoriaId)} onUpgrade={onUpgrade} /></td>
                 <td className={`num ${i.valor < 0 ? 'pos' : ''}`}>{brl(Math.abs(i.valor))}</td>
               </tr>
             ))}
@@ -145,6 +166,7 @@ export default function CartaoDetalhe() {
   const { user } = useAuth();
   const assinatura = usePlanLimits();
   const uid = user?.uid;
+  const categoriasCSV = useCategorias(uid);
   const cartoes = useColecao<Cartao>(uid ? ['users', uid, 'cartoes'] : null);
   const faturasCol = useColecao<Fatura>(uid ? ['users', uid, 'cartoes', id, 'faturas'] : null);
   const cartao = cartoes.itens.find((c) => c.id === id);
@@ -157,6 +179,14 @@ export default function CartaoDetalhe() {
   const [importacao, setImportacao] = useState<ResultadoCsv | null>(null);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
   const [upgrade, setUpgrade] = useState(false);
+  const [upgradeRecurso, setUpgradeRecurso] = useState('importação de CSV');
+  const [gerenciadorAberto, setGerenciadorAberto] = useState(false);
+
+  function pedirUpgradeCategorias() { setUpgradeRecurso('edição de categorias'); setUpgrade(true); }
+  async function comPremiumCategorias<T>(acao: () => Promise<T>): Promise<T | undefined> {
+    if (assinatura.carregando || !assinatura.premium) { pedirUpgradeCategorias(); return undefined; }
+    return acao();
+  }
 
   async function lerArquivo(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -191,6 +221,9 @@ export default function CartaoDetalhe() {
           ) : (
             <button type="button" className="btn btn-sec" onClick={() => setUpgrade(true)}>Importar CSV <PremiumBadge /></button>
           )}
+          <button type="button" className="btn btn-sec" disabled={assinatura.carregando || categoriasCSV.carregando} onClick={() => assinatura.premium ? setGerenciadorAberto(true) : pedirUpgradeCategorias()}>
+            🏷 Categorias {!assinatura.carregando && !categoriasCSV.carregando && !assinatura.premium && <PremiumBadge />}
+          </button>
           <button type="button" className="btn" onClick={() => setEdicao('nova')}>Nova fatura</button>
         </div>
       </div>
@@ -202,8 +235,15 @@ export default function CartaoDetalhe() {
 
       {!assinatura.carregando && !assinatura.premium && <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>A importação de faturas por CSV é um recurso Premium. Você continua podendo cadastrar e editar faturas manualmente. <Link href="/planos">Conheça os planos</Link>.</div>}
       {assinatura.erro && <div className="aviso aviso-alerta" role="status" style={{ marginBottom: '1rem' }}>{assinatura.erro}</div>}
+      {categoriasCSV.erro && <div className="aviso aviso-erro" role="alert" style={{ marginBottom: '1rem' }}>{categoriasCSV.erro}</div>}
       {aviso && <div className={`aviso ${aviso.tipo === 'ok' ? 'aviso-ok' : 'aviso-erro'}`} role="status" style={{ marginBottom: '1rem' }}>{aviso.texto}</div>}
-      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso="importação de CSV" />
+      <UpgradeModal aberto={upgrade} onFechar={() => setUpgrade(false)} recurso={upgradeRecurso} />
+      <GerenciadorCategorias aberto={gerenciadorAberto} onFechar={() => setGerenciadorAberto(false)} categorias={categoriasCSV.categorias} regras={categoriasCSV.regras} premium={assinatura.premium}
+        onAdicionar={(nome) => comPremiumCategorias(() => categoriasCSV.adicionarCategoria(nome)).then(() => undefined)}
+        onSalvarPalavras={(categoria, palavras) => comPremiumCategorias(() => categoriasCSV.salvarPalavras(categoria, palavras)).then(() => undefined)}
+        onRemoverCategoria={(categoriaId) => comPremiumCategorias(() => categoriasCSV.removerCategoria(categoriaId)).then(() => undefined)}
+        onDefinirRegra={(chave, categoriaId) => comPremiumCategorias(() => categoriasCSV.definirRegra(chave, categoriaId)).then(() => undefined)}
+        onRemoverRegra={(regraId) => comPremiumCategorias(() => categoriasCSV.removerRegra(regraId)).then(() => undefined)} />
 
       <div className="card">
         <div className="card-cab"><h2>Faturas</h2></div>
@@ -230,7 +270,8 @@ export default function CartaoDetalhe() {
                         <button type="button" className="btn btn-perigo btn-mini" aria-label={`Excluir fatura de ${rotuloYm(f.id)}`} onClick={() => { if (confirm(`Excluir a fatura de ${rotuloYm(f.id)} e seus lançamentos?`)) void excluirFatura(uid, id, f.id); }}>✕</button>
                       </div>
                     </div>
-                    {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} /></div>}
+                    {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
+                      onDefinirRegra={categoriasCSV.definirRegra} onUpgrade={pedirUpgradeCategorias} /></div>}
                   </div>
                 );
               })}

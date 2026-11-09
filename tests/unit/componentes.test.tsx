@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CalendarioGastos } from '@/components/CalendarioGastos';
 import { CorpoBarras, GraficoRosca } from '@/components/graficos';
+import { ResumoCategorias, SeletorCategoria } from '@/components/CategoriasCSV';
+import { CATEGORIAS_PADRAO, SEM_CATEGORIA, idCategoriaPadrao } from '@/lib/categorias';
 import type { Compra } from '@/lib/analises';
 
 const limpar = (html: string) => html.replace(/\u00a0/g, ' ');
@@ -90,5 +92,36 @@ describe('CalendarioGastos', () => {
   it('destaca o dia de hoje no mês corrente', () => {
     const html = renderToStaticMarkup(<CalendarioGastos ym="2026-11" compras={[]} hojeYm="2026-11" hojeDia={3} />);
     expect(conta(html, 'cal-dia hoje')).toBe(1);
+  });
+});
+
+describe('categorias nos lançamentos CSV', () => {
+  const categorias = CATEGORIAS_PADRAO.map((categoria) => ({ ...categoria, id: idCategoriaPadrao(categoria.nome) }));
+
+  it('mostra seletor somente para compras positivas e destaca Sem categoria', () => {
+    const positivo = renderToStaticMarkup(<SeletorCategoria item={{ data: '01/11', descricao: 'LOJA XYZ', valor: 50 }}
+      categoria={SEM_CATEGORIA} categorias={categorias} premium onChange={() => undefined} onUpgrade={() => undefined} />);
+    const pagamento = renderToStaticMarkup(<SeletorCategoria item={{ data: '01/11', descricao: 'PAGAMENTO', valor: -50 }}
+      categoria={SEM_CATEGORIA} categorias={categorias} premium onChange={() => undefined} onUpgrade={() => undefined} />);
+    expect(positivo).toContain('aria-label="Categoria do lançamento LOJA XYZ"');
+    expect(positivo).toContain('categoria-sem');
+    expect(positivo).toContain('<option value="" selected="">Sem categoria</option>');
+    expect(pagamento).toBe('');
+  });
+
+  it('resume gastos ordenados e calcula percentual incluindo Sem categoria', () => {
+    const html = renderToStaticMarkup(<ResumoCategorias
+      itens={[
+        { data: '01/11', descricao: 'SUPERMERCADO ABC', valor: 75 },
+        { data: '02/11', descricao: 'XYZ DESCONHECIDO', valor: 25 },
+        { data: '03/11', descricao: 'PARCELAMENTO FUTURO', valor: 99, programado: true },
+        { data: '04/11', descricao: 'PAGAMENTO', valor: -50 },
+      ]}
+      categoriaDe={(descricao) => descricao.startsWith('SUPERMERCADO') ? 'Supermercado' : SEM_CATEGORIA} />);
+    expect(html.indexOf('Supermercado')).toBeLessThan(html.indexOf(SEM_CATEGORIA));
+    expect(html).toContain('75%');
+    expect(html).toContain('25%');
+    expect(html).not.toContain('99%');
+    expect(conta(html, 'categoria-resumo-linha')).toBe(2);
   });
 });

@@ -2,7 +2,7 @@ import { arredondar } from '@/lib/formato';
 import { intervaloYm, montarYm, ymAtual } from '@/lib/datas';
 import { valorNoMes } from '@/lib/dividas';
 import { rendaDoMes } from '@/lib/rendas';
-import { categoriaDaCompra } from '@/lib/categorias';
+import { categoriaDoItem, SEM_CATEGORIA, type CategoriaComId, type RegraCategoria } from '@/lib/categorias';
 import type { Cartao, Com, ContaFixa, Divida, Fatura, ItemFatura, Perfil, Renda } from '@/types/finance';
 
 type Periodo = Pick<Perfil, 'anoIni' | 'mesIni' | 'anoFim' | 'mesFim'>;
@@ -144,17 +144,23 @@ export function resumoCalendario(compras: Compra[], ym: string, hoje: string = y
 
 export type Fatia = { nome: string; valor: number };
 
-/** Soma por categoria, mantendo as maiores e juntando o restante em "Outros" (máx. `maximo` fatias). */
-export function gastosPorCategoria(compras: Compra[], maximo = 8): Fatia[] {
+/** Soma por categoria; o excedente visual vira "Demais categorias", sem gravá-lo como categoria. */
+export function gastosPorCategoria(compras: Compra[], categorias: CategoriaComId[], regras: RegraCategoria[], maximo = 8): Fatia[] {
   const soma = new Map<string, number>();
   for (const c of compras) {
-    const cat = categoriaDaCompra(c.descricao);
+    const cat = categoriaDoItem(c.descricao, categorias, regras);
     soma.set(cat, (soma.get(cat) ?? 0) + c.valor);
   }
-  const ordenado = [...soma.entries()].filter(([n]) => n !== 'Outros').sort((a, b) => b[1] - a[1]);
-  const principais = ordenado.slice(0, maximo - 1);
-  const resto = ordenado.slice(maximo - 1).reduce((a, [, v]) => a + v, 0) + (soma.get('Outros') ?? 0);
-  const out = principais.map(([nome, valor]) => ({ nome, valor: arredondar(valor) }));
-  if (resto > 0) out.push({ nome: 'Outros', valor: arredondar(resto) });
-  return out;
+  const semValor = soma.get(SEM_CATEGORIA) ?? 0;
+  const ordenado = [...soma.entries()].filter(([nome]) => nome !== SEM_CATEGORIA).sort((a, b) => b[1] - a[1]);
+  const precisaSem = semValor > 0;
+  const limite = Math.max(precisaSem && ordenado.length ? 2 : 1, Math.floor(maximo));
+  const categoriasPermitidas = Math.max(0, limite - Number(precisaSem));
+  const precisaAgrupar = ordenado.length > categoriasPermitidas;
+  const principais = precisaAgrupar ? ordenado.slice(0, Math.max(0, categoriasPermitidas - 1)) : ordenado.slice(0, categoriasPermitidas);
+  const agrupado = ordenado.slice(principais.length).reduce((total, [, valor]) => total + valor, 0);
+  const resultado = principais.map(([nome, valor]) => ({ nome, valor: arredondar(valor) }));
+  if (agrupado > 0) resultado.push({ nome: 'Demais categorias', valor: arredondar(agrupado) });
+  if (precisaSem) resultado.push({ nome: SEM_CATEGORIA, valor: arredondar(semValor) });
+  return resultado;
 }

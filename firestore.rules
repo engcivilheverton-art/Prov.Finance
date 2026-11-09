@@ -108,11 +108,38 @@ service cloud.firestore {
       allow delete: if isOwner(uid); // permite que Free remova dados CSV antigos sem importar novos
     }
 
+    // Categorias editáveis do usuário. O marcador impede que categorias apagadas sejam semeadas de novo.
+    function categoriaValida(d) {
+      return d.keys().hasOnly(['nome', 'palavras', 'ordem'])
+        && d.nome is string && d.nome.size() >= 1 && d.nome.size() <= 30
+        && d.palavras is list && d.palavras.size() <= 100
+        && d.ordem is int && d.ordem >= 0 && d.ordem <= 49;
+    }
+    match /users/{uid}/categorias/{categoriaId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && (
+        (categoriaId == '__meta_seed' && request.resource.data.keys().hasOnly(['semeado']) && request.resource.data.semeado == true)
+        || (categoriaId.matches('^[A-Za-z0-9_-]{1,64}$') && categoriaId != '__meta_seed' && categoriaValida(request.resource.data))
+      );
+      allow delete: if isOwner(uid) && categoriaId != '__meta_seed';
+    }
+    match /users/{uid}/regrasCategoria/{regraId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && regraId.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['chave', 'categoriaId'])
+        && request.resource.data.chave is string && request.resource.data.chave.size() >= 1 && request.resource.data.chave.size() <= 200
+        && request.resource.data.categoriaId is string && request.resource.data.categoriaId.size() >= 1 && request.resource.data.categoriaId.size() <= 64
+        && request.resource.data.categoriaId != '__meta_seed'
+        && exists(/databases/$(database)/documents/users/$(uid)/categorias/$(request.resource.data.categoriaId));
+      allow delete: if isOwner(uid) && regraId.matches('^[0-9a-f]{64}$');
+    }
+
     // Demais dados financeiros — só o próprio dono. As áreas com regras específicas acima são excluídas.
     match /users/{uid}/{colecao}/{docId=**} {
-      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
-      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
-      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos';
+      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
+      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
+      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
     }
 
     // Tudo o mais é negado.

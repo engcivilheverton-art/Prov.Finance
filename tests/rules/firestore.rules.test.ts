@@ -89,6 +89,38 @@ describe('validação do perfil', () => {
   });
 });
 
+describe('categorias e regras de classificação', () => {
+  const categoria = { nome: 'Mercado', palavras: ['SUPERMERC', 'CARREFOUR'], ordem: 0 };
+  const id = 'a'.repeat(64);
+  const regra = { chave: 'MERCADO CENTRAL', categoriaId: 'mercado-id' };
+
+  it('o dono lê e grava categorias e regras válidas, mas outro usuário não acessa', async () => {
+    const ana = env.authenticatedContext('ana').firestore();
+    await assertSucceeds(setDoc(doc(ana, 'users/ana/categorias/mercado-id'), categoria));
+    await assertSucceeds(setDoc(doc(ana, `users/ana/regrasCategoria/${id}`), regra));
+    await assertSucceeds(setDoc(doc(ana, 'users/ana/categorias/__meta_seed'), { semeado: true }));
+    await assertFails(deleteDoc(doc(ana, 'users/ana/categorias/__meta_seed')));
+    const bia = env.authenticatedContext('bia').firestore();
+    await assertFails(getDoc(doc(bia, 'users/ana/categorias/mercado-id')));
+    await assertFails(setDoc(doc(bia, `users/ana/regrasCategoria/${'b'.repeat(64)}`), regra));
+  });
+
+  it('rejeita campos extras, nomes inválidos, ordem não inteira e regras sem categoria', async () => {
+    const db = env.authenticatedContext('ana').firestore();
+    await assertFails(setDoc(doc(db, 'users/ana/categorias/vazia'), { ...categoria, nome: '' }));
+    await assertFails(setDoc(doc(db, 'users/ana/categorias/longa'), { ...categoria, nome: 'X'.repeat(31) }));
+    await assertFails(setDoc(doc(db, 'users/ana/categorias/campo-extra'), { ...categoria, admin: true }));
+    await assertFails(setDoc(doc(db, 'users/ana/categorias/ordem-decimal'), { ...categoria, ordem: 1.5 }));
+    await assertFails(setDoc(doc(db, `users/ana/regrasCategoria/${id}`), { ...regra, chave: 'X'.repeat(201) }));
+    await assertFails(setDoc(doc(db, `users/ana/regrasCategoria/${id}`), { ...regra, categoriaId: 'ausente' }));
+  });
+
+  it('as regras específicas não liberam gravação nos itens CSV', async () => {
+    const db = env.authenticatedContext('ana').firestore();
+    await assertFails(setDoc(doc(db, 'users/ana/cartoes/c1/faturas/2026-11/itens/i1'), { data: '01/11', descricao: 'LOJA', valor: 10 }));
+  });
+});
+
 describe('subcoleções do módulo de cartões e contas fixas', () => {
   const caminhoItem = 'users/ana/cartoes/c1/faturas/2026-11/itens/abc-1';
 

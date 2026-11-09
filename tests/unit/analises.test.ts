@@ -3,7 +3,7 @@ import {
   agruparPorDia, comprasDoMes, dataDaCompra, diasNoMes, faturasEmAberto, faturasPorMes,
   gastosPorCategoria, mesesDoPeriodo, resumoCalendario, serieMensal, totaisDoMes,
 } from '@/lib/analises';
-import { categoriaDaCompra } from '@/lib/categorias';
+import { CATEGORIAS_PADRAO, SEM_CATEGORIA, idCategoriaPadrao } from '@/lib/categorias';
 import { abreviar, escalaBonita } from '@/lib/escala';
 import { gerarParcelas } from '@/lib/dividas';
 import type { Cartao, Com, Fatura, ItemFatura, Renda } from '@/types/finance';
@@ -110,22 +110,19 @@ describe('compras do mês e calendário', () => {
 });
 
 describe('categorias', () => {
-  it('reconhece estabelecimentos comuns e prioriza compras online sobre "mercado"', () => {
-    expect(categoriaDaCompra('MERCADO LIVRE*PEDIDO')).toBe('Compras online');
-    expect(categoriaDaCompra('SUPERMERCADO CENTRAL')).toBe('Mercado');
-    expect(categoriaDaCompra('UBER *TRIP')).toBe('Transporte');
-    expect(categoriaDaCompra('POSTO IPIRANGA')).toBe('Transporte');
-    expect(categoriaDaCompra('Farmácia Vida')).toBe('Saúde');
-    expect(categoriaDaCompra('NETFLIX.COM')).toBe('Assinaturas');
-    expect(categoriaDaCompra('RESTAURANTE SABOR')).toBe('Alimentação fora');
-    expect(categoriaDaCompra('ANUIDADE DIFERENCIADA')).toBe('Taxas e serviços');
-    expect(categoriaDaCompra('XYZ 123')).toBe('Outros');
-  });
-
-  it('soma por categoria, ordena e junta o excedente em Outros', () => {
+  it('soma com categorias do usuário e mantém Sem categoria separado do excedente visual', () => {
+    const categorias = CATEGORIAS_PADRAO.map((c) => ({ ...c, id: idCategoriaPadrao(c.nome) }));
     const c = (descricao: string, valor: number) => ({ id: descricao, cartaoId: 'a', cartaoNome: 'A', dataIso: '2026-10-01', descricao, valor });
-    const r = gastosPorCategoria([c('SUPERMERCADO X', 100), c('SUPERMERCADO Y', 50), c('UBER', 30), c('NETFLIX', 20), c('ZZZ', 5)], 3);
-    expect(r).toEqual([{ nome: 'Mercado', valor: 150 }, { nome: 'Transporte', valor: 30 }, { nome: 'Outros', valor: 25 }]);
+    const compras = [c('SUPERMERCADO X', 100), c('SUPERMERCADO Y', 50), c('UBER', 30), c('NETFLIX', 20), c('ZZZ', 5)];
+    const r = gastosPorCategoria(compras, categorias, []);
+    expect(r).toEqual([
+      { nome: 'Supermercado', valor: 150 }, { nome: 'Transporte', valor: 30 },
+      { nome: 'Assinatura', valor: 20 }, { nome: SEM_CATEGORIA, valor: 5 },
+    ]);
+    const limitado = gastosPorCategoria(compras, categorias, [], 3);
+    expect(limitado).toHaveLength(3);
+    expect(limitado.at(-1)?.nome).toBe(SEM_CATEGORIA);
+    expect(limitado[1].nome).toBe('Demais categorias');
   });
 });
 

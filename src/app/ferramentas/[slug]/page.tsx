@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Calculadora from '@/components/calculadoras/Calculadora';
 import { anoTabelas, ferramentas, obterFerramenta } from '@/lib/calculadoras';
@@ -38,7 +39,7 @@ export default async function FerramentaPage({ params }: PageProps<'/ferramentas
 
   return (
     <main className={styles.wrap}>
-      <nav className={styles.breadcrumb} aria-label="Navegação estrutural"><a href="/ferramentas">Ferramentas</a><span aria-hidden="true">/</span><span>{tool.title}</span></nav>
+      <nav className={styles.breadcrumb} aria-label="Navegação estrutural"><Link href="/ferramentas">Ferramentas</Link><span aria-hidden="true">/</span><span>{tool.title}</span></nav>
       <header className="pagina-cab"><div><div className="sub">Calculadora gratuita · {anoTabelas}</div><h1>{tool.h1}</h1><p className="suave">{tool.subtitle}</p></div></header>
       <Calculadora ferramenta={tool} />
       <p className={styles.disclaimer}>Estimativa educativa com base nas regras e tabelas disponíveis para {anoTabelas}. O resultado não substitui orientação profissional, análise de convenção coletiva ou conferência com seu empregador.</p>

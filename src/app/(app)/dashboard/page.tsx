@@ -17,6 +17,8 @@ import { MESES, rotuloCurto, rotuloYm, somarMeses, ymAtual } from '@/lib/datas';
 import { arredondar, brl } from '@/lib/formato';
 import { carregarPerfil } from '@/lib/perfil';
 import { usePlanLimits } from '@/lib/use-plan-limits';
+import { useCategorias } from '@/lib/use-categorias';
+import { SEM_CATEGORIA } from '@/lib/categorias';
 import {
   PERFIL_PADRAO, type Cartao, type Com, type ContaFixa, type Divida, type Fatura, type ItemFatura, type Perfil, type Renda,
 } from '@/types/finance';
@@ -56,6 +58,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const uid = user?.uid;
   const assinatura = usePlanLimits();
+  const categoriasCSV = useCategorias(uid);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [perfilPronto, setPerfilPronto] = useState(false);
   const [ym, setYm] = useState(ymAtual());
@@ -146,7 +149,8 @@ export default function DashboardPage() {
   const comprasMes = useMemo(() => comprasDoMes(fontes, ym), [fontes, ym]);
   const filtroValido = filtroCartao === 'todos' || cartoes.itens.some((c) => c.id === filtroCartao) ? filtroCartao : 'todos';
   const comprasRosca = filtroValido === 'todos' ? comprasMes : comprasMes.filter((c) => c.cartaoId === filtroValido);
-  const fatias = gastosPorCategoria(comprasRosca).map((f, i) => ({ ...f, cor: CORES_ROSCA[i % CORES_ROSCA.length] }));
+  const fatias = gastosPorCategoria(comprasRosca, categoriasCSV.categorias, categoriasCSV.regras)
+    .map((f, i) => ({ ...f, cor: f.nome === SEM_CATEGORIA ? 'var(--ch-fixas)' : CORES_ROSCA[i % CORES_ROSCA.length] }));
 
   const hoje = new Date();
   const nome = perfil?.nome || user?.displayName || '';
@@ -251,7 +255,8 @@ export default function DashboardPage() {
                       {cartoes.itens.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
                   </label>
-                  {itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                  {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                  {categoriasCSV.erro && <p className="aviso aviso-erro" role="alert">{categoriasCSV.erro}</p>}
                 </>}
               </div>
             </div>
@@ -302,7 +307,8 @@ export default function DashboardPage() {
                 </label>
               </div>
               <div className="card-corpo">
-                {itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                {categoriasCSV.erro && <p className="aviso aviso-erro" role="alert">{categoriasCSV.erro}</p>}
                 <p className="suave pequeno" style={{ marginTop: '.6rem' }}>Pela data da compra. Categorias estimadas pelo nome do estabelecimento, a partir dos lançamentos importados por CSV.</p>
               </div>
             </div>
