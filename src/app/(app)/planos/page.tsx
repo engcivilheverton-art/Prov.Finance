@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { PLANOS, RECURSOS } from '@/lib/planos';
 import { useAssinatura } from '@/lib/use-assinatura';
+import estilos from './planos.module.css';
 
 const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -45,7 +46,7 @@ export default function PlanosPage() {
             <div className="card-corpo">
               <p style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0 0 .3rem' }}>{moeda(plano.valor)}<span className="pequeno suave">/{plano.id === 'mensal' ? 'mês' : 'ano'}</span></p>
               <p className="suave">{plano.id === 'mensal' ? 'Cobrança recorrente mensal.' : 'Cobrança recorrente a cada 12 meses.'}</p>
-              <ul>{RECURSOS.premium.map((recurso) => <li key={recurso}>{recurso}</li>)}</ul>
+              <ul className={estilos.recursos}>{RECURSOS.premium.map((recurso) => <li key={recurso}>{recurso}</li>)}</ul>
               {!assinatura.carregando && !assinatura.premium && <Link className="btn" href={`/cadastro?plano=${plano.id}`} style={{ display: 'inline-flex', textDecoration: 'none', marginTop: '.5rem' }}>Contratar {plano.nome}</Link>}
             </div>
           </section>

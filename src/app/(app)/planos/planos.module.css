@@ -1,0 +1,19 @@
+.recursos {
+  display: grid;
+  gap: .18rem;
+  margin-top: .45rem;
+  list-style: none;
+}
+
+.recursos li {
+  position: relative;
+  overflow-wrap: anywhere;
+}
+
+.recursos li::before {
+  content: '•';
+  position: absolute;
+  right: calc(100% + .38rem);
+  color: var(--ink);
+  font-weight: 700;
+}
