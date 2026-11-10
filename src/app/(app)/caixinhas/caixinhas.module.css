@@ -24,3 +24,11 @@
 .arquivadas { margin-top: 1.5rem; }
 .arquivadas h2 { margin: 0; font-size: 1.05rem; }
 .arquivada { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.campoCor { display: flex; flex-direction: column; gap: .3rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.campoCor legend { margin-bottom: .3rem; padding: 0; font-size: .8rem; font-weight: 600; color: var(--mut); }
+.paleta { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 46px; }
+.opcaoCor { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+.opcaoCor:has(input:checked) { border-color: var(--ink); }
+.opcaoCor:focus-within { outline: 3px solid color-mix(in srgb, var(--g) 30%, transparent); outline-offset: 2px; }
+.opcaoCor input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.amostraCor { display: block; width: 23px; height: 23px; border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 50%; background: var(--amostra); }

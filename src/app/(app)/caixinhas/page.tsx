@@ -16,7 +16,16 @@ import type { CaixinhaUsuario, OrigemCaixinha } from '@/types/caixinhas';
 import type { Cartao, Com, ContaFixa, Divida, Fatura, Renda } from '@/types/finance';
 import estilos from './caixinhas.module.css';
 
-const CORES = ['#0B3B8C', '#DC2626', '#F59E0B', '#2563EB', '#16A34A', '#7C3AED', '#0891B2', '#DB2777'];
+const CORES = [
+  { valor: '#0B3B8C', nome: 'Azul-marinho' },
+  { valor: '#DC2626', nome: 'Vermelho' },
+  { valor: '#F59E0B', nome: 'Âmbar' },
+  { valor: '#2563EB', nome: 'Azul' },
+  { valor: '#16A34A', nome: 'Verde' },
+  { valor: '#7C3AED', nome: 'Roxo' },
+  { valor: '#0891B2', nome: 'Turquesa' },
+  { valor: '#DB2777', nome: 'Rosa' },
+];
 const ICONES = ['🎯', '🏠', '🚗', '✈️', '🛒', '📚', '🐾', '💰', '🎓', '🏥', '🎉', '💡'];
 
 function SeletorMes({ ym, onChange }: { ym: string; onChange: (ym: string) => void }) {
@@ -40,7 +49,7 @@ function FormCaixinha({ inicial, origensUsadas, onSalvar, onCancelar }: {
   const [nome, setNome] = useState(inicial?.dados.nome ?? '');
   const [percentual, setPercentual] = useState(String(inicial?.dados.percentual ?? ''));
   const [icone, setIcone] = useState(inicial?.dados.icone ?? ICONES[0]);
-  const [cor, setCor] = useState(inicial?.dados.cor ?? CORES[0]);
+  const [cor, setCor] = useState(inicial?.dados.cor ?? CORES[0].valor);
   const [origem, setOrigem] = useState<OrigemCaixinha>(inicial?.dados.origem ?? 'manual');
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -75,7 +84,17 @@ function FormCaixinha({ inicial, origensUsadas, onSalvar, onCancelar }: {
       </div>
       <div className="grade-2">
         <div className="campo"><label htmlFor="cx-icone">Ícone</label><select id="cx-icone" value={icone} onChange={(e) => setIcone(e.target.value)}>{ICONES.map((i) => <option key={i} value={i}>{i}</option>)}</select></div>
-        <div className="campo"><label htmlFor="cx-cor">Cor</label><select id="cx-cor" value={cor} onChange={(e) => setCor(e.target.value)}>{CORES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+        <fieldset className={estilos.campoCor}>
+          <legend>Cor</legend>
+          <div className={estilos.paleta}>
+            {CORES.map((opcao) => (
+              <label key={opcao.valor} className={estilos.opcaoCor} title={opcao.nome}>
+                <input type="radio" name="cx-cor" value={opcao.valor} checked={cor === opcao.valor} onChange={() => setCor(opcao.valor)} aria-label={opcao.nome} />
+                <span className={estilos.amostraCor} style={{ '--amostra': opcao.valor } as CSSProperties} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
       {erro && <div className="aviso aviso-erro" role="alert">{erro}</div>}
       <div className="acoes" style={{ justifyContent: 'flex-end' }}>
