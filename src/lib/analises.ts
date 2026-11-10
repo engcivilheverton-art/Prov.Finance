@@ -115,7 +115,7 @@ export function comprasDoMes(fontes: ItensDaFatura[], ym: string): Compra[] {
   const out: Compra[] = [];
   for (const f of fontes) {
     for (const it of f.itens) {
-      if (it.programado || !(it.valor > 0)) continue;
+      if (it.programado || it.ignorado || !(it.valor > 0)) continue;
       const dataIso = it.competenciaYm ? dataDaCompetencia(it.data, it.competenciaYm) : dataDaCompra(it.data, f.ymFatura);
       if (!dataIso || !dataIso.startsWith(ym)) continue;
       out.push({ id: `${f.cartaoId}:${f.ymFatura}:${it.id}`, cartaoId: f.cartaoId, cartaoNome: f.cartaoNome, dataIso, descricao: it.descricao, parcela: it.parcela, valor: it.valor });

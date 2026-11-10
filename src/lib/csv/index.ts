@@ -219,7 +219,7 @@ export function identificar(itens: ItemFatura[]): ItemComId[] {
 }
 
 export const totalGastos = (itens: ItemFatura[]): number =>
-  arredondar(itens.filter((i) => !i.programado && i.valor > 0).reduce((a, i) => a + i.valor, 0));
+  arredondar(itens.filter((i) => !i.programado && !i.ignorado && i.valor > 0).reduce((a, i) => a + i.valor, 0));
 
 /** Fatura sugerida: gastos de outubro costumam fechar na fatura paga em novembro. */
 export function sugerirMesFatura(res: ResultadoCsv, hoje: Date = new Date()): string {

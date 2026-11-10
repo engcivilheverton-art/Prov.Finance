@@ -45,6 +45,7 @@ export type ItemFatura = {
   parcela?: string;
   valor: number; // positivo = gasto, negativo = pagamento/estorno
   programado?: boolean; // parcelamento futuro (não entra no total da fatura)
+  ignorado?: boolean; // lançamento mantido para consulta, mas fora dos totais e análises
   competenciaYm?: string; // mês em que a parcela entra na fatura, mesmo com a data original da compra
 };
 

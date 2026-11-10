@@ -134,12 +134,17 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(uid)/categorias/$(request.resource.data.categoriaId));
       allow delete: if isOwner(uid) && regraId.matches('^[0-9a-f]{64}$');
     }
+    // Regras de tratamento de CSV gravadas apenas pelo backend/Admin SDK.
+    match /users/{uid}/regrasImportacaoCsv/{regraId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
 
     // Demais dados financeiros — só o próprio dono. As áreas com regras específicas acima são excluídas.
     match /users/{uid}/{colecao}/{docId=**} {
-      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
-      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
-      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria';
+      allow read: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria' && colecao != 'regrasImportacaoCsv';
+      allow create: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'dividas' && colecao != 'fixas' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria' && colecao != 'regrasImportacaoCsv';
+      allow update, delete: if isOwner(uid) && colecao != 'perfil' && colecao != 'assinatura' && colecao != 'cartoes' && colecao != 'planLocks' && colecao != 'caixinhas' && colecao != 'caixinhasGastos' && colecao != 'categorias' && colecao != 'regrasCategoria' && colecao != 'regrasImportacaoCsv';
     }
 
     // Tudo o mais é negado.

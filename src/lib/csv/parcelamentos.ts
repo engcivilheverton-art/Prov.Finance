@@ -34,8 +34,8 @@ export function distribuirParcelamentos(itens: ItemFatura[], ym: string): Fatura
     lista.push(item);
     porMes.set(mes, lista);
   };
-  const atuais = itens.filter((item) => !item.programado);
-  const programados = itens.filter((item) => item.programado === true);
+  const atuais = itens.filter((item) => !item.programado && !item.ignorado);
+  const programados = itens.filter((item) => item.programado === true && !item.ignorado);
   const usados = new Set<number>();
   let gerados = 0;
   atuais.forEach((item) => adicionar(ym, item));

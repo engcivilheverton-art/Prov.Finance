@@ -62,6 +62,20 @@ export async function importarItens(uid: string, cartaoId: string, ym: string, i
   return { novos: data.novos ?? 0, ignorados: data.ignorados ?? 0, total: data.total, futuras: data.futuras ?? [] };
 }
 
+export async function editarLancamentoCsv(uid: string, cartaoId: string, ym: string, itemId: string, acao: 'ignorar' | 'pagamento' | 'despesa') {
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid) throw new Error('Sessão inválida. Entre novamente.');
+  const idToken = await user.getIdToken();
+  const response = await fetch('/api/billing/csv-import/transaction', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${idToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ cartaoId, ym, itemId, acao }),
+  });
+  const data = await response.json().catch(() => ({})) as { error?: string; total?: number };
+  if (!response.ok || typeof data.total !== 'number') throw new Error(data.error ?? 'Não foi possível atualizar o lançamento.');
+  return data.total;
+}
+
 export async function excluirFatura(uid: string, cartaoId: string, ym: string) {
   const ref = refFatura(uid, cartaoId, ym);
   await apagarEmLotes((await getDocs(collection(ref, 'itens'))).docs);

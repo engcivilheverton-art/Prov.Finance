@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { adminAuth, adminDb, FieldValue } from '@/lib/firebase-admin';
 import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan } from '@/lib/mercadopago-server';
 import { FREE_LIMITS } from '@/lib/planos';
+import { chaveBase } from '@/lib/categorias';
 export { hasValidWebhookSignature } from '@/lib/webhook-signature';
 
 export type VerifiedUser = { uid: string; email?: string; emailVerified?: boolean; name?: string };
@@ -249,5 +250,50 @@ export async function commitFirestoreDocuments(writes: { path: string; fields: R
       }
     }
   }
+}
+
+export type CsvTransactionAction = 'ignorar' | 'pagamento' | 'despesa';
+export class CsvTransactionActionError extends Error {
+  constructor(readonly status: number, message: string) { super(message); this.name = 'CsvTransactionActionError'; }
+}
+
+/** Corrige um lançamento importado, recalcula a fatura e grava a regra para futuros CSVs. */
+export async function aplicarAcaoLancamentoCsv(uid: string, cartaoId: string, ym: string, itemId: string, action: CsvTransactionAction) {
+  const db = adminDb();
+  const invoiceRef = db.doc(`users/${uid}/cartoes/${cartaoId}/faturas/${ym}`);
+  const itemsRef = invoiceRef.collection('itens');
+  const itemRef = itemsRef.doc(itemId);
+  const itemSnapshot = await itemRef.get();
+  if (!itemSnapshot.exists) throw new CsvTransactionActionError(404, 'Lançamento não encontrado.');
+  const original = itemSnapshot.data() ?? {};
+  if (original.programado === true || typeof original.valor !== 'number' || typeof original.descricao !== 'string') {
+    throw new CsvTransactionActionError(400, 'Este lançamento não pode ser editado por esta opção.');
+  }
+  const chave = chaveBase(original.descricao);
+  if (!chave || chave.length > 200) throw new CsvTransactionActionError(400, 'Não foi possível criar uma regra para esta descrição.');
+  const ruleId = createHash('sha256').update(chave).digest('hex');
+  const ruleRef = db.doc(`users/${uid}/regrasImportacaoCsv/${ruleId}`);
+  return db.runTransaction(async (transaction) => {
+    const [invoice, current, savedItems] = await Promise.all([
+      transaction.get(invoiceRef), transaction.get(itemRef), transaction.get(itemsRef),
+    ]);
+    if (!invoice.exists) throw new CsvTransactionActionError(404, 'Fatura não encontrada.');
+    if (invoice.get('origem') !== 'csv') throw new CsvTransactionActionError(400, 'A edição está disponível apenas para faturas importadas de CSV.');
+    if (!current.exists) throw new CsvTransactionActionError(404, 'Lançamento não encontrado.');
+    const data = current.data() ?? {};
+    const valor = Number(data.valor);
+    const updates: Record<string, unknown> = { valor: action === 'pagamento' ? -Math.abs(valor) : Math.abs(valor) };
+    if (action === 'ignorar') updates.ignorado = true;
+    else updates.ignorado = FieldValue.delete();
+    const total = savedItems.docs.reduce((sum, document) => {
+      const fields = document.id === itemId ? { ...data, ...updates, ignorado: action === 'ignorar' } : document.data();
+      const amount = Number(fields.valor);
+      return fields.programado !== true && fields.ignorado !== true && amount > 0 ? sum + amount : sum;
+    }, 0);
+    transaction.set(current.ref, updates, { merge: true });
+    transaction.set(ruleRef, { chave, acao: action, atualizadoEm: new Date().toISOString() });
+    transaction.set(invoiceRef, { valor: Math.round((total + Number.EPSILON) * 100) / 100, atualizadaEm: new Date().toISOString() }, { merge: true });
+    return { total: Math.round((total + Number.EPSILON) * 100) / 100 };
+  });
 }
 

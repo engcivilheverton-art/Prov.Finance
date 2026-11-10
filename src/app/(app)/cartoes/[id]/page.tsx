@@ -10,31 +10,35 @@ import { GerenciadorCategorias, ResumoCategorias, SeletorCategoria } from '@/com
 import { useAuth } from '@/lib/auth-context';
 import { usePlanLimits } from '@/lib/use-plan-limits';
 import { resumoCartao } from '@/lib/cartoes';
-import { excluirFatura, FaturaPagaError, PremiumRequiredError, importarItens } from '@/lib/cartoes-db';
+import { editarLancamentoCsv, excluirFatura, FaturaPagaError, PremiumRequiredError, importarItens } from '@/lib/cartoes-db';
 import { useColecao } from '@/lib/colecao';
 import { decodificar, lerCsv, NOMES_BANCO, sugerirMesFatura, totalGastos, type ResultadoCsv } from '@/lib/csv';
 import { distribuirParcelamentos, resumirParcelamentos } from '@/lib/csv/parcelamentos';
 import { MESES, montarYm, rotuloYm, ymAtual } from '@/lib/datas';
 import { brl } from '@/lib/formato';
-import { SEM_CATEGORIA, type CategoriaComId } from '@/lib/categorias';
+import { chaveBase, SEM_CATEGORIA, type CategoriaComId } from '@/lib/categorias';
 import { useCategorias } from '@/lib/use-categorias';
 import type { Cartao, Com, Fatura, ItemFatura } from '@/types/finance';
 
 type Aviso = { tipo: 'ok' | 'erro'; texto: string };
 
-function Lancamentos({ uid, cartaoId, ym, categorias, premium, categoriaDe, onDefinirRegra, onUpgrade }: {
-  uid: string; cartaoId: string; ym: string; categorias: CategoriaComId[]; premium: boolean;
+function Lancamentos({ uid, cartaoId, ym, origem, categorias, premium, categoriaDe, onDefinirRegra, onUpgrade }: {
+  uid: string; cartaoId: string; ym: string; origem: Fatura['origem']; categorias: CategoriaComId[]; premium: boolean;
   categoriaDe: (descricao: string) => string; onDefinirRegra: (descricao: string, categoriaId: string | null) => Promise<void>; onUpgrade: () => void;
 }) {
   const { itens, carregando } = useColecao<ItemFatura>(['users', uid, 'cartoes', cartaoId, 'faturas', ym, 'itens']);
   const [erroCategoria, setErroCategoria] = useState('');
+  const [erroAcao, setErroAcao] = useState('');
+  const [mensagemAcao, setMensagemAcao] = useState('');
+  const [salvandoItem, setSalvandoItem] = useState('');
   if (carregando) return <p className="suave pequeno">Carregando lançamentos…</p>;
   if (!itens.length) return <p className="suave pequeno">Nenhum lançamento importado para esta fatura.</p>;
 
   const ordenar = (a: ItemFatura, b: ItemFatura) => b.data.split('/').reverse().join('').localeCompare(a.data.split('/').reverse().join(''));
   const grupos = [
-    { titulo: 'Gastos', lista: itens.filter((i) => !i.programado && i.valor > 0).sort(ordenar) },
-    { titulo: 'Pagamentos e estornos', lista: itens.filter((i) => !i.programado && i.valor < 0).sort(ordenar) },
+    { titulo: 'Transações ignoradas (fora do total)', lista: itens.filter((i) => !i.programado && i.ignorado).sort(ordenar) },
+    { titulo: 'Gastos', lista: itens.filter((i) => !i.programado && !i.ignorado && i.valor > 0).sort(ordenar) },
+    { titulo: 'Pagamentos e estornos', lista: itens.filter((i) => !i.programado && !i.ignorado && i.valor < 0).sort(ordenar) },
     { titulo: 'Parcelamentos futuros (não entram no total)', lista: itens.filter((i) => i.programado).sort(ordenar) },
   ].filter((g) => g.lista.length);
 
@@ -45,10 +49,25 @@ function Lancamentos({ uid, cartaoId, ym, categorias, premium, categoriaDe, onDe
     catch (e) { setErroCategoria(e instanceof Error ? e.message : 'Não foi possível salvar a categoria.'); }
   }
 
+  async function alterarAcao(item: Com<ItemFatura>, acao: 'ignorar' | 'pagamento' | 'despesa') {
+    setErroAcao(''); setMensagemAcao(''); setSalvandoItem(item.id);
+    try {
+      await editarLancamentoCsv(uid, cartaoId, ym, item.id, acao);
+      setMensagemAcao(acao === 'ignorar'
+        ? 'Transação ignorada nesta fatura e nas próximas importações com a mesma descrição.'
+        : acao === 'pagamento'
+          ? 'Lançamento considerado como pagamento nesta fatura e nas próximas importações com a mesma descrição.'
+          : 'Lançamento restaurado como gasto nesta fatura e nas próximas importações com a mesma descrição.');
+    } catch (error) { setErroAcao(error instanceof Error ? error.message : 'Não foi possível editar a transação.'); }
+    finally { setSalvandoItem(''); }
+  }
+
   return (
     <div>
       <ResumoCategorias itens={itens} categoriaDe={categoriaDe} />
       {erroCategoria && <div className="aviso aviso-erro" role="alert">{erroCategoria}</div>}
+      {erroAcao && <div className="aviso aviso-erro" role="alert">{erroAcao}</div>}
+      {mensagemAcao && <div className="aviso aviso-ok" role="status">{mensagemAcao}</div>}
       <p className="suave pequeno">A categoria escolhida cria uma regra para este estabelecimento, incluindo parcelas e próximas importações.</p>
       {grupos.map((g) => (
         <div key={g.titulo}>
@@ -62,6 +81,10 @@ function Lancamentos({ uid, cartaoId, ym, categorias, premium, categoriaDe, onDe
                 </td>
                 <td><SeletorCategoria item={i} categoria={categoriaDe(i.descricao)} categorias={categorias} premium={premium}
                   onChange={(categoriaId) => void alterarCategoria(i.descricao, categoriaId)} onUpgrade={onUpgrade} /></td>
+                <td>{origem === 'csv' && !i.programado && <select className="filtro" aria-label={`Editar transação ${i.descricao}`} value="" disabled={salvandoItem === i.id}
+                  onChange={(event) => { const action = event.target.value as 'ignorar' | 'pagamento' | 'despesa'; if (action) void alterarAcao(i, action); }}>
+                  <option value="">Editar…</option><option value="ignorar">Ignorar transação</option><option value="pagamento">Considerar como pagamento</option><option value="despesa">Restaurar como gasto</option>
+                </select>}</td>
                 <td className={`num ${i.valor < 0 ? 'pos' : ''}`}>{brl(Math.abs(i.valor))}</td>
               </tr>
             ))}
@@ -111,6 +134,15 @@ function FormFatura({ inicial, onSalvar, onCancelar }: { inicial: Com<Fatura> | 
 }
 
 function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cartaoId: string; res: ResultadoCsv; faturas: Com<Fatura>[]; onFim: (a: Aviso | null) => void }) {
+  const regrasImportacao = useColecao<{ chave: string; acao: 'ignorar' | 'pagamento' | 'despesa' }>(['users', uid, 'regrasImportacaoCsv']);
+  const acoesPorChave = new Map(regrasImportacao.itens.map((regra) => [chaveBase(regra.chave), regra.acao]));
+  const itensComRegras = res.itens.map((item) => {
+    const acao = acoesPorChave.get(chaveBase(item.descricao));
+    if (acao === 'ignorar') return { ...item, ignorado: true };
+    if (acao === 'pagamento') return { ...item, valor: -Math.abs(item.valor), ignorado: false };
+    if (acao === 'despesa') return { ...item, valor: Math.abs(item.valor), ignorado: false };
+    return item;
+  });
   const sugerido = sugerirMesFatura(res);
   const [mes, setMes] = useState(Number(sugerido.split('-')[1]));
   const [ano, setAno] = useState(Number(sugerido.split('-')[0]));
@@ -118,10 +150,10 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
   const ym = montarYm(ano, mes);
   const existente = faturas.find((f) => f.id === ym);
   const bloqueada = existente?.status === 'Pago';
-  const gastos = res.itens.filter((i) => !i.programado && i.valor > 0);
+  const gastos = itensComRegras.filter((i) => !i.programado && !i.ignorado && i.valor > 0);
   let resumoFuturas: ReturnType<typeof resumirParcelamentos> = [];
   let erroDistribuicao = '';
-  try { resumoFuturas = resumirParcelamentos(distribuirParcelamentos(res.itens, ym), ym); }
+  try { resumoFuturas = resumirParcelamentos(distribuirParcelamentos(itensComRegras, ym), ym); }
   catch (error) { erroDistribuicao = error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas deste arquivo.'; }
   const faturaFuturaPaga = resumoFuturas.find((futura) => faturas.some((fatura) => fatura.id === futura.ym && fatura.status === 'Pago'));
 
@@ -148,9 +180,10 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
   return (
     <div className="pilha">
       <div className="aviso aviso-info">
-        <b>{NOMES_BANCO[res.banco]}</b> · {res.itens.length} lançamento(s) lido(s) · gastos {brl(totalGastos(res.itens))} ({gastos.length})
+        <b>{NOMES_BANCO[res.banco]}</b> · {res.itens.length} lançamento(s) lido(s) · gastos {brl(totalGastos(itensComRegras))} ({gastos.length})
         {res.itens.some((i) => i.programado) && ` · ${res.itens.filter((i) => i.programado).length} lançamento(s) futuro(s) identificado(s)`}
       </div>
+      {regrasImportacao.carregando ? <div className="aviso aviso-info">Buscando suas regras salvas antes de importar…</div> : <p className="suave pequeno">As regras salvas de ignorar, pagamento ou gasto serão aplicadas também a este arquivo.</p>}
       {res.banco !== 'bradesco' && <div className="aviso aviso-alerta">Leitor automático para {NOMES_BANCO[res.banco]}: confira se o total acima bate com a sua fatura antes de confirmar.</div>}
       <p className="suave pequeno">Escolha a fatura em que estes lançamentos serão cobrados. Compras de outubro normalmente entram na fatura paga em novembro.</p>
       <div className="grade-2">
@@ -165,7 +198,7 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
       {faturaFuturaPaga && <div className="aviso aviso-erro">A fatura futura de {rotuloYm(faturaFuturaPaga.ym)} já está paga. Desfaça o pagamento para importar o parcelamento.</div>}
       <div className="acoes" style={{ justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-sec" onClick={() => onFim(null)}>Cancelar</button>
-        <button type="button" className="btn" disabled={bloqueada || importando || !!erroDistribuicao || !!faturaFuturaPaga} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
+        <button type="button" className="btn" disabled={bloqueada || importando || !!erroDistribuicao || !!faturaFuturaPaga || regrasImportacao.carregando} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
       </div>
     </div>
   );
@@ -280,7 +313,7 @@ export default function CartaoDetalhe() {
                         <button type="button" className="btn btn-perigo btn-mini" aria-label={`Excluir fatura de ${rotuloYm(f.id)}`} onClick={() => { if (confirm(`Excluir a fatura de ${rotuloYm(f.id)} e seus lançamentos?`)) void excluirFatura(uid, id, f.id); }}>✕</button>
                       </div>
                     </div>
-                    {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
+                    {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} origem={f.origem} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
                       onDefinirRegra={categoriasCSV.definirRegra} onUpgrade={pedirUpgradeCategorias} /></div>}
                   </div>
                 );

@@ -12,7 +12,7 @@ export function SeletorCategoria({
   item: ItemFatura; categoria: string; categorias: CategoriaComId[]; premium: boolean;
   onChange: (categoriaId: string | null) => void; onUpgrade: () => void;
 }) {
-  if (item.valor <= 0) return null;
+  if (item.valor <= 0 || item.ignorado || item.programado) return null;
   const selecionada = categorias.find((c) => c.nome === categoria)?.id ?? '';
   return (
     <span className="categoria-seletor">
@@ -32,7 +32,7 @@ export function ResumoCategorias({
   const totais = useMemo(() => {
     const valores = new Map<string, number>();
     for (const item of itens) {
-      if (item.programado || item.valor <= 0) continue;
+      if (item.programado || item.ignorado || item.valor <= 0) continue;
       const nome = categoriaDe(item.descricao);
       valores.set(nome, (valores.get(nome) ?? 0) + item.valor);
     }

@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server';
 import { MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
 import { canUseFeature } from '@/lib/planos';
 import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
+import { chaveBase } from '@/lib/categorias';
 import { commitFirestoreDocuments, confirmarAcessoPremium, getFirestoreDocument, listFirestoreCollection, verifyFirebaseIdToken } from '@/lib/server-billing';
 
 // A stalled dependency should not consume Vercel's five-minute function limit.
 export const maxDuration = 60;
 
-type ItemCsv = { data: string; descricao: string; parcela?: string; valor: number; programado?: boolean; competenciaYm?: string };
+type ItemCsv = { data: string; descricao: string; parcela?: string; valor: number; programado?: boolean; competenciaYm?: string; ignorado?: boolean };
 function hash(texto: string): string {
   let h = 2166136261;
   for (let i = 0; i < texto.length; i++) { h ^= texto.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -24,7 +25,7 @@ function identificar(itens: ItemCsv[]) {
   });
 }
 function totalGastos(itens: Record<string, unknown>[]) {
-  const total = itens.filter((item) => item.programado !== true && typeof item.valor === 'number' && item.valor > 0)
+  const total = itens.filter((item) => item.programado !== true && item.ignorado !== true && typeof item.valor === 'number' && item.valor > 0)
     .reduce((sum, item) => sum + Number(item.valor), 0);
   return Math.round((total + Number.EPSILON) * 100) / 100;
 }
@@ -81,8 +82,22 @@ export async function POST(request: Request) {
     const base = `users/${user.uid}/cartoes/${body.cartaoId}`;
     const card = await etapa('firestore_read_card', () => getFirestoreDocument(base));
     if (!card) return NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
+    const rules = await etapa('firestore_read_csv_rules', () => listFirestoreCollection(`users/${user.uid}/regrasImportacaoCsv`));
+    const actions = new Map(rules.flatMap(({ fields }) => typeof fields.chave === 'string' && ['ignorar', 'pagamento', 'despesa'].includes(String(fields.acao))
+      ? [[chaveBase(fields.chave), fields.acao as 'ignorar' | 'pagamento' | 'despesa'] as const] : []));
+    const applyRule = (item: ItemCsv): ItemCsv => {
+      const action = actions.get(chaveBase(item.descricao));
+      if (action === 'ignorar') return { ...item, ignorado: true };
+      if (action === 'pagamento') return { ...item, valor: -Math.abs(item.valor), ignorado: false };
+      if (action === 'despesa') return { ...item, valor: Math.abs(item.valor), ignorado: false };
+      return item;
+    };
+    // IDs do mês importado são baseados no CSV original, para a regra de pagamento
+    // não criar uma segunda linha quando o mesmo arquivo for importado novamente.
+    const currentItems = identificar(items).map((item) => ({ ...applyRule(item), id: item.id }));
+    const itemsWithRules = items.map(applyRule);
     let faturasPlanejadas;
-    try { faturasPlanejadas = distribuirParcelamentos(items, body.ym); }
+    try { faturasPlanejadas = distribuirParcelamentos(itemsWithRules, body.ym); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas.' }, { status: 400 }); }
 
     const destinos = await etapa('firestore_read_target_invoices', () => Promise.all(faturasPlanejadas.map(async (fatura) => ({
@@ -101,7 +116,9 @@ export async function POST(request: Request) {
       const itemsPath = `${destino.path}/itens`;
       const existing = await etapa('firestore_read_existing_items', () => listFirestoreCollection(itemsPath));
       const existingIds = new Set(existing.map((item) => item.id));
-      const identified = identificar(destino.itens);
+      const identified = destino.ym === body.ym
+        ? currentItems
+        : identificar(destino.itens);
       const newItems = identified.filter((item) => !existingIds.has(item.id));
       novos += newItems.length;
       ignorados += identified.length - newItems.length;
