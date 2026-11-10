@@ -4,6 +4,7 @@ import { PLANOS, planoValido } from '@/lib/planos';
 import { appBaseUrl, getPreapproval, matchesPlan, mercadoPagoAccessToken } from '@/lib/mercadopago-server';
 import {
   finishSubscriptionCheckout,
+  isComplimentaryPremiumUser,
   readSubscription,
   releaseSubscriptionCheckout,
   reserveSubscriptionCheckout,
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
   let user: Awaited<ReturnType<typeof verifyFirebaseIdToken>>;
   try { user = await verifyFirebaseIdToken(token); }
   catch { return NextResponse.json({ error: 'Sua sessão expirou. Entre novamente.' }, { status: 401 }); }
+  if (isComplimentaryPremiumUser(user)) {
+    return NextResponse.json({ error: 'Sua conta já tem acesso Premium concedido.' }, { status: 409 });
+  }
 
   const body = await request.json().catch(() => ({})) as { plan?: unknown };
   if (!planoValido(body.plan)) return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });

@@ -37,7 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     // the server still enforces the Free quota and never grants Premium access.
     let premium = false;
     try {
-      premium = await confirmarAcessoPremium(user.uid);
+      premium = await confirmarAcessoPremium(user.uid, undefined, user);
     } catch (error) {
       console.warn('Premium validation unavailable; applying Free limits:', error instanceof Error ? error.message : 'unknown');
     }

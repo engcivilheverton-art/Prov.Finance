@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
-type StatusAssinatura = { tier: 'free' | 'premium'; status: string; plan: 'mensal' | 'anual' | null };
+type StatusAssinatura = { tier: 'free' | 'premium'; status: string; plan: 'mensal' | 'anual' | null; accessType?: 'complimentary' | 'subscription' };
 
 export function useAssinatura() {
   const { user } = useAuth();

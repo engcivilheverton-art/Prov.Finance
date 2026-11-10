@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, matchesPlan } from '@/lib/mercadopago-server';
-import { readSubscription, verifyFirebaseIdToken, writeSubscription } from '@/lib/server-billing';
+import { isComplimentaryPremiumUser, readSubscription, verifyFirebaseIdToken, writeSubscription } from '@/lib/server-billing';
 
 export async function GET(request: Request) {
   const authorization = request.headers.get('authorization') ?? '';
@@ -12,6 +12,11 @@ export async function GET(request: Request) {
   catch { return NextResponse.json({ error: 'Sua sessão expirou. Entre novamente.' }, { status: 401 }); }
 
   try {
+    if (isComplimentaryPremiumUser(user)) {
+      return NextResponse.json({
+        tier: 'premium', status: 'complimentary', paymentStatus: 'none', plan: null, accessType: 'complimentary',
+      }, { headers: { 'cache-control': 'no-store, max-age=0' } });
+    }
     let subscription = await readSubscription(user.uid);
     let remotePlanValid = false;
     let latestInvoice = null;

@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     let user;
     try { user = await etapa('firebase_verify_id_token', () => verifyFirebaseIdToken(idToken)); }
     catch { return NextResponse.json({ error: 'Sua sessão expirou. Entre novamente.' }, { status: 401 }); }
-    const premium = await confirmarAcessoPremium(user.uid, etapa);
+    const premium = await confirmarAcessoPremium(user.uid, etapa, user);
     if (!canUseFeature('csvImport', premium)) return NextResponse.json({ code: 'PREMIUM_REQUIRED', error: 'Esta funcionalidade é exclusiva do plano Premium.' }, { status: 403 });
 
     const body = await etapa('read_request_body', () => request.json().catch(() => ({}))) as { cartaoId?: unknown; ym?: unknown; items?: unknown };

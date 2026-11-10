@@ -38,7 +38,7 @@ export default function PlanosPage() {
   return (
     <>
       <div className="pagina-cab"><div><div className="sub">Planos PROV.</div><h1>Escolha seu plano</h1></div></div>
-      {assinatura.carregando ? <div className="aviso aviso-info" role="status" aria-busy="true" style={{ marginBottom: '1rem' }}>Verificando sua assinatura…</div> : assinatura.premium ? <div className="aviso aviso-ok" style={{ marginBottom: '1rem' }}>Sua assinatura Premium está ativa ({assinatura.plan === 'anual' ? 'anual' : 'mensal'}).</div> : <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>Você está no plano gratuito. O Premium só é ativado após a confirmação da assinatura pelo Mercado Pago.</div>}
+      {assinatura.carregando ? <div className="aviso aviso-info" role="status" aria-busy="true" style={{ marginBottom: '1rem' }}>Verificando sua assinatura…</div> : assinatura.premium ? <div className="aviso aviso-ok" style={{ marginBottom: '1rem' }}>{assinatura.accessType === 'complimentary' ? 'Sua conta tem acesso Premium concedido gratuitamente.' : `Sua assinatura Premium está ativa (${assinatura.plan === 'anual' ? 'anual' : 'mensal'}).`}</div> : <div className="aviso aviso-info" style={{ marginBottom: '1rem' }}>Você está no plano gratuito. O Premium só é ativado após a confirmação da assinatura pelo Mercado Pago.</div>}
       <div className="grade-2">
         {Object.values(PLANOS).map((plano) => (
           <section className="card" key={plano.id}>

@@ -5,7 +5,7 @@ import { getLatestAuthorizedInvoice, getPreapproval, hasConfirmedLatestInvoice, 
 import { FREE_LIMITS } from '@/lib/planos';
 export { hasValidWebhookSignature } from '@/lib/webhook-signature';
 
-export type VerifiedUser = { uid: string; email?: string; name?: string };
+export type VerifiedUser = { uid: string; email?: string; emailVerified?: boolean; name?: string };
 export type Subscription = {
   status: string;
   plan: string;
@@ -20,7 +20,7 @@ export class InvalidFirebaseTokenError extends Error {}
 export async function verifyFirebaseIdToken(token: string): Promise<VerifiedUser> {
   try {
     const claims = await adminAuth().verifyIdToken(token, true);
-    return { uid: claims.uid, email: claims.email, name: claims.name };
+    return { uid: claims.uid, email: claims.email, emailVerified: claims.email_verified === true, name: claims.name };
   } catch {
     throw new InvalidFirebaseTokenError('Token Firebase inválido ou expirado.');
   }
@@ -44,8 +44,16 @@ export async function readSubscription(uid: string): Promise<Subscription | null
 
 export type BillingStage = <T>(name: string, operation: () => Promise<T>) => Promise<T>;
 
+/** A server-only allowlist for accounts granted complimentary Premium access. */
+export function isComplimentaryPremiumUser(user?: Pick<VerifiedUser, 'email' | 'emailVerified'>): boolean {
+  if (!user?.email || user.emailVerified !== true) return false;
+  const allowed = (process.env.PROV_PREMIUM_FREE_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(user.email.trim().toLowerCase());
+}
+
 /** Reuses the application's single authoritative Premium entitlement check. */
-export async function confirmarAcessoPremium(uid: string, etapa: BillingStage = (_name, operation) => operation()): Promise<boolean> {
+export async function confirmarAcessoPremium(uid: string, etapa: BillingStage = (_name, operation) => operation(), user?: VerifiedUser): Promise<boolean> {
+  if (isComplimentaryPremiumUser(user)) return true;
   const assinatura = await etapa('firestore_read_subscription', () => readSubscription(uid));
   if (!assinatura?.preapprovalId) return false;
   const remote = await etapa('mercadopago_read_preapproval', () => getPreapproval(assinatura.preapprovalId!));
