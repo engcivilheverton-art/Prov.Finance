@@ -87,6 +87,15 @@ describe('compras do mês e calendário', () => {
     expect(comprasDoMes(fontes, '2026-09')).toHaveLength(1);
   });
 
+  it('atualiza os valores da rosca de categorias ao mudar o mês selecionado', () => {
+    const categorias = CATEGORIAS_PADRAO.map((c) => ({ ...c, id: idCategoriaPadrao(c.nome) }));
+    const outubro = gastosPorCategoria(comprasDoMes(fontes, '2026-10'), categorias, []);
+    const novembro = gastosPorCategoria(comprasDoMes(fontes, '2026-11'), categorias, []);
+    expect(outubro.reduce((soma, fatia) => soma + fatia.valor, 0)).toBe(190.5);
+    expect(novembro.reduce((soma, fatia) => soma + fatia.valor, 0)).toBe(20);
+    expect(outubro).not.toEqual(novembro);
+  });
+
   it('agrupa por dia e resume o mês', () => {
     const compras = comprasDoMes(fontes, '2026-10');
     expect(agruparPorDia(compras)[6]).toMatchObject({ total: 150.5 });

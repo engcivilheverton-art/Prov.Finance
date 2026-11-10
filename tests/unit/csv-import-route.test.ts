@@ -44,7 +44,7 @@ describe('POST /api/billing/csv-import', () => {
     mocks.verifyFirebaseIdToken.mockResolvedValue({ uid: 'user-1' });
     mocks.confirmarAcessoPremium.mockResolvedValue(true);
     mocks.getFirestoreDocument.mockResolvedValueOnce({ nome: 'Cartão' }).mockResolvedValueOnce(null);
-    mocks.listFirestoreCollection.mockResolvedValueOnce([]).mockResolvedValueOnce([
+    mocks.listFirestoreCollection.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValueOnce([
       { id: 'item-1', fields: { valor: 25, programado: false } },
     ]);
     mocks.commitFirestoreDocuments.mockResolvedValue(undefined);

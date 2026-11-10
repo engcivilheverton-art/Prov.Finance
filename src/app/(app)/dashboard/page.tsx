@@ -257,7 +257,7 @@ export default function DashboardPage() {
                       {cartoes.itens.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
                   </label>
-                  {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                  {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca key={`categorias-${ym}-${filtroValido}`} titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
                   {categoriasCSV.erro && <p className="aviso aviso-erro" role="alert">{categoriasCSV.erro}</p>}
                 </>}
               </div>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                 </label>
               </div>
               <div className="card-corpo">
-                {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
+                {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca key={`categorias-${ym}-${filtroValido}`} titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
                 {categoriasCSV.erro && <p className="aviso aviso-erro" role="alert">{categoriasCSV.erro}</p>}
                 <p className="suave pequeno" style={{ marginTop: '.6rem' }}>Pela data da compra. Categorias estimadas pelo nome do estabelecimento, a partir dos lançamentos importados por CSV.</p>
               </div>
