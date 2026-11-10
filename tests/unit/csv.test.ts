@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decodificar, detectarBanco, dividirLinhas, extrairParcela, identificar, lerCsv, sugerirMesFatura, totalGastos } from '@/lib/csv';
+import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
 
 // Mesma estrutura do arquivo real do Bradesco (separador de linha \r, Windows-1252), com dados fictícios.
 const BRADESCO = [
@@ -61,6 +62,35 @@ describe('Bradesco', () => {
 });
 
 describe('leitor genérico', () => {
+  it('Inter: reconhece pagamento negativo e parcelas no campo Tipo', () => {
+    const csv = [
+      '"Data","Lançamento","Categoria","Tipo","Valor"',
+      '"09/11/2026","PAGTO DEBITO AUTOMATICO","OUTROS","Compra à vista","-R$ 505,38"',
+      '"30/06/2026","LISTO   START SOM      BELO HORIZON  BRA","OUTROS","Parcela 5/10","R$ 169,00"',
+      '"10/06/2026","HEVERTONALV            SAO PAULO     BRA","OUTROS","Parcela 6/6","R$ 22,55"',
+      '"23/02/2026","PARC SALDO TOT","OUTROS","Parcela 10/11","R$ 283,83"',
+    ].join('\n');
+
+    const resultado = lerCsv(csv);
+    expect(resultado.banco).toBe('inter');
+    expect(resultado.itens.map((item) => item.valor)).toEqual([-505.38, 169, 22.55, 283.83]);
+    expect(resultado.itens.slice(1)).toMatchObject([
+      { descricao: 'LISTO   START SOM      BELO HORIZON  BRA', parcela: '5/10' },
+      { descricao: 'HEVERTONALV            SAO PAULO     BRA', parcela: '6/6' },
+      { descricao: 'PARC SALDO TOT', parcela: '10/11' },
+    ]);
+    expect(totalGastos(resultado.itens)).toBe(475.38);
+
+    const faturasFuturas = distribuirParcelamentos(resultado.itens, '2026-12').filter((fatura) => fatura.ym !== '2026-12');
+    expect(faturasFuturas.map((fatura) => [fatura.ym, fatura.itens.map((item) => item.parcela).sort()])).toEqual([
+      ['2027-01', ['11/11', '6/10']],
+      ['2027-02', ['7/10']],
+      ['2027-03', ['8/10']],
+      ['2027-04', ['9/10']],
+      ['2027-05', ['10/10']],
+    ]);
+  });
+
   it('Nubank: gastos positivos, pagamento negativo', () => {
     const csv = ['date,category,title,amount', '2026-10-05,restaurante,Padaria,12.50', '2026-10-06,transporte,Uber,30.00', '2026-10-07,pagamento,Pagamento recebido,-500.00'].join('\n');
     const r = lerCsv(csv);

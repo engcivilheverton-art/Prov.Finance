@@ -37,6 +37,12 @@ export function detectarBanco(linhas: string[]): BancoId {
   if (topo.includes('banco do brasil') || topo.includes('ourocard') || topo.includes('bb.com.br')) return 'bb';
   if (topo.includes('nubank')) return 'nubank';
   if (topo.includes('banco inter') || /\binter\b/.test(topo)) return 'inter';
+  const assinaturaInter = linhas.slice(0, 20).some((linha) => {
+    const sep = [';', ',', '\t'].sort((a, b) => linha.split(b).length - linha.split(a).length)[0];
+    const campos = dividirCampos(linha, sep).map(semAcento);
+    return ['data', 'lancamento', 'categoria', 'tipo', 'valor'].every((campo) => campos.includes(campo));
+  });
+  if (assinaturaInter) return 'inter';
   if (topo.includes('itau')) return 'itau';
   if (topo.includes('mercado pago') || topo.includes('mercadopago')) return 'mercadopago';
   if (topo.includes('c6 bank') || /\bc6\b/.test(topo)) return 'c6';
@@ -131,8 +137,8 @@ function mapearColunas(campos: string[]): Colunas | null {
   };
 }
 
-const REGEX_CREDITO = /pagamento|estorno|credito|reembolso|cashback|desconto/;
-const REGEX_GASTO = /compra|debito|despesa|parcelad|saque/;
+const REGEX_CREDITO = /pagto|pagamento|pgto|estorno|credito|reembolso|cashback|desconto/;
+const REGEX_GASTO = /compra|debito|despesa|parcelad|parcela|saque/;
 
 function lerGenerico(linhas: string[], banco: BancoId): ResultadoCsv {
   const sep = [';', ',', '\t'].map((s) => ({ s, n: linhas.slice(0, 10).join('\n').split(s).length })).sort((a, b) => b.n - a.n)[0].s;
@@ -157,8 +163,10 @@ function lerGenerico(linhas: string[], banco: BancoId): ResultadoCsv {
     const bruta = (c[cols.descricao] ?? '').replace(/"/g, '');
     if (/^\s*(saldo (da fatura |fatura )?anterior|saldo atual|total)\b/i.test(semAcento(bruta))) continue;
     const { descricao, parcela: pDesc } = extrairParcela(bruta);
-    const parcela = (cols.parcela >= 0 ? c[cols.parcela]?.match(/\d+\/\d+/)?.[0] : undefined) ?? pDesc;
-    const rotulo = semAcento(`${cols.tipo >= 0 ? c[cols.tipo] ?? '' : ''} ${descricao}`);
+    const tipo = cols.tipo >= 0 ? c[cols.tipo] ?? '' : '';
+    const parcelaTipo = tipo.match(/(?:parcela\s*)?(\d{1,2}\s*\/\s*\d{1,2})/i)?.[1]?.replace(/\s/g, '');
+    const parcela = (cols.parcela >= 0 ? c[cols.parcela]?.match(/\d+\/\d+/)?.[0] : undefined) ?? pDesc ?? parcelaTipo;
+    const rotulo = semAcento(`${tipo} ${descricao}`);
     const classe: Bruto['classe'] = marca === 'C' ? 'credito' : marca === 'D' ? 'gasto' : REGEX_CREDITO.test(rotulo) ? 'credito' : cols.tipo >= 0 && REGEX_GASTO.test(rotulo) ? 'gasto' : null;
     brutos.push({ data, descricao, parcela, valor, classe });
   }
