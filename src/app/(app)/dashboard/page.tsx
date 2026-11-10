@@ -153,6 +153,8 @@ export default function DashboardPage() {
     .map((f, i) => ({ ...f, cor: f.nome === SEM_CATEGORIA ? 'var(--ch-fixas)' : CORES_ROSCA[i % CORES_ROSCA.length] }));
 
   const hoje = new Date();
+  const mesProximo = somarMeses(ymAtual(hoje), 1);
+  const faturasProximoMes = abertas.filter((f) => f.ym === mesProximo);
   const nome = perfil?.nome || user?.displayName || '';
 
   return (
@@ -184,11 +186,11 @@ export default function DashboardPage() {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-cab"><h2>Próximas faturas</h2><Link href="/cartoes" className="pequeno">Ver cartões</Link></div>
         <div className="card-corpo">
-          {carregando ? <p className="suave">Carregando…</p> : !abertas.length ? (
-            <p className="suave">Nenhuma fatura em aberto.</p>
+          {carregando ? <p className="suave">Carregando…</p> : !faturasProximoMes.length ? (
+            <p className="suave">Nenhuma fatura em aberto para {rotuloYm(mesProximo)}.</p>
           ) : (
             <div className="lista">
-              {abertas.slice(0, 6).map((f) => (
+              {faturasProximoMes.map((f) => (
                 <div key={`${f.cartaoId}-${f.ym}`} className="linha">
                   <div className="grow">
                     <div className="titulo"><Link href={`/cartoes/${f.cartaoId}`}>{f.cartaoNome}</Link></div>
