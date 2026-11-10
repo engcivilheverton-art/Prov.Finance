@@ -70,7 +70,20 @@ export function distribuirParcelamentos(itens: ItemFatura[], ym: string): Fatura
   programados.forEach((item, indice) => {
     if (usados.has(indice)) return;
     const destino = somarMesesFatura(ym, 1);
+    // Uma linha em "Lançamentos programados" representa a próxima parcela
+    // (no mês seguinte ao selecionado), mas ainda pode haver parcelas depois dela.
     adicionar(destino, { data: item.data, descricao: item.descricao, valor: item.valor, ...(item.parcela ? { parcela: item.parcela } : {}), competenciaYm: destino });
+    const parcela = lerParcela(item.parcela);
+    if (!parcela || item.valor <= 0) return;
+    for (let numero = parcela.atual + 1; numero <= parcela.total; numero++) {
+      gerados++;
+      if (gerados > MAX_PARCELAS_FUTURAS) throw new Error('Este arquivo contém parcelas futuras demais para importar de uma vez.');
+      const mesParcela = somarMesesFatura(ym, numero - parcela.atual + 1);
+      adicionar(mesParcela, {
+        data: item.data, descricao: item.descricao, valor: item.valor,
+        parcela: `${numero}/${parcela.total}`, competenciaYm: mesParcela,
+      });
+    }
   });
 
   return [...porMes.entries()].map(([mes, lista]) => ({ ym: mes, itens: lista }));
