@@ -83,11 +83,11 @@ describe('leitor genérico', () => {
 
     const faturasFuturas = distribuirParcelamentos(resultado.itens, '2026-12').filter((fatura) => fatura.ym !== '2026-12');
     expect(faturasFuturas.map((fatura) => [fatura.ym, fatura.itens.map((item) => item.parcela).sort()])).toEqual([
-      ['2027-01', ['11/11', '6/10']],
-      ['2027-02', ['7/10']],
-      ['2027-03', ['8/10']],
-      ['2027-04', ['9/10']],
-      ['2027-05', ['10/10']],
+      ['2026-11', ['5/10']],
+      ['2027-01', ['11/11', '7/10']],
+      ['2027-02', ['8/10']],
+      ['2027-03', ['9/10']],
+      ['2027-04', ['10/10']],
     ]);
   });
 

@@ -24,9 +24,21 @@ export function somarMesesFatura(ym: string, quantidade: number): string {
   return `${Math.floor(serial / 12)}-${String(serial % 12 + 1).padStart(2, '0')}`;
 }
 
+/** Fatura da parcela N = mês da compra + N; o mês escolhido no import serve de referência de ano. */
+function faturaDaParcela(item: ItemFatura, referenciaYm: string, numero: number): string {
+  const data = item.data.match(/^\s*(\d{1,2})\/(\d{1,2})/);
+  const [anoReferencia, mesReferencia] = referenciaYm.split('-').map(Number);
+  if (!data || !anoReferencia || mesReferencia < 1 || mesReferencia > 12) return somarMesesFatura(referenciaYm, numero);
+  const mesCompra = Number(data[2]);
+  if (mesCompra < 1 || mesCompra > 12) return somarMesesFatura(referenciaYm, numero);
+  // Se a compra aparece em mês posterior à fatura de referência, ela ocorreu no ano anterior.
+  const anoCompra = anoReferencia - Number(mesCompra > mesReferencia);
+  return somarMesesFatura(`${anoCompra}-${String(mesCompra).padStart(2, '0')}`, numero);
+}
+
 export type FaturaPlanejadaCsv = { ym: string; itens: ItemFatura[] };
 
-/** Mantém o conteúdo atual no mês escolhido e distribui apenas parcelas ainda não lançadas. */
+/** Distribui cada parcela usando a data da compra; parcela 1 comprada em novembro vence na fatura de dezembro. */
 export function distribuirParcelamentos(itens: ItemFatura[], ym: string): FaturaPlanejadaCsv[] {
   const porMes = new Map<string, ItemFatura[]>();
   const adicionar = (mes: string, item: ItemFatura) => {
@@ -38,16 +50,18 @@ export function distribuirParcelamentos(itens: ItemFatura[], ym: string): Fatura
   const programados = itens.filter((item) => item.programado === true && !item.ignorado);
   const usados = new Set<number>();
   let gerados = 0;
-  atuais.forEach((item) => adicionar(ym, item));
-
   for (const item of atuais) {
-    if (item.valor <= 0) continue;
     const parcela = lerParcela(item.parcela);
-    if (!parcela || parcela.atual >= parcela.total) continue;
+    if (item.valor <= 0 || !parcela) {
+      adicionar(ym, item);
+      continue;
+    }
+    const mesAtual = faturaDaParcela(item, ym, parcela.atual);
+    adicionar(mesAtual, item);
     for (let numero = parcela.atual + 1; numero <= parcela.total; numero++) {
       gerados++;
       if (gerados > MAX_PARCELAS_FUTURAS) throw new Error('Este arquivo contém parcelas futuras demais para importar de uma vez.');
-      const destino = somarMesesFatura(ym, numero - parcela.atual);
+      const destino = faturaDaParcela(item, ym, numero);
       const chave = chaveDoItem(item);
       const correspondente = programados.findIndex((candidato, indice) => {
         if (usados.has(indice) || chaveDoItem(candidato) !== chave) return false;
@@ -69,16 +83,15 @@ export function distribuirParcelamentos(itens: ItemFatura[], ym: string): Fatura
 
   programados.forEach((item, indice) => {
     if (usados.has(indice)) return;
-    const destino = somarMesesFatura(ym, 1);
-    // Uma linha em "Lançamentos programados" representa a próxima parcela
-    // (no mês seguinte ao selecionado), mas ainda pode haver parcelas depois dela.
-    adicionar(destino, { data: item.data, descricao: item.descricao, valor: item.valor, ...(item.parcela ? { parcela: item.parcela } : {}), competenciaYm: destino });
     const parcela = lerParcela(item.parcela);
+    const destino = parcela ? faturaDaParcela(item, ym, parcela.atual) : somarMesesFatura(ym, 1);
+    // A linha programada é a parcela atual ainda não lançada; as demais avançam pela data da compra.
+    adicionar(destino, { data: item.data, descricao: item.descricao, valor: item.valor, ...(item.parcela ? { parcela: item.parcela } : {}), competenciaYm: destino });
     if (!parcela || item.valor <= 0) return;
     for (let numero = parcela.atual + 1; numero <= parcela.total; numero++) {
       gerados++;
       if (gerados > MAX_PARCELAS_FUTURAS) throw new Error('Este arquivo contém parcelas futuras demais para importar de uma vez.');
-      const mesParcela = somarMesesFatura(ym, numero - parcela.atual + 1);
+      const mesParcela = faturaDaParcela(item, ym, numero);
       adicionar(mesParcela, {
         data: item.data, descricao: item.descricao, valor: item.valor,
         parcela: `${numero}/${parcela.total}`, competenciaYm: mesParcela,

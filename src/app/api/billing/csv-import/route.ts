@@ -112,6 +112,7 @@ export async function POST(request: Request) {
     let ignorados = 0;
     let totalAtual = 0;
     const futuras: { ym: string; quantidade: number }[] = [];
+    const faturasAtualizadas: { ym: string; quantidade: number; valor: number }[] = [];
     for (const destino of destinos) {
       const itemsPath = `${destino.path}/itens`;
       const existing = await etapa('firestore_read_existing_items', () => listFirestoreCollection(itemsPath));
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
       // Soma a coleção efetivamente persistida para manter totais corretos em reimportações.
       const persistedItems = await etapa('firestore_read_saved_items', () => listFirestoreCollection(itemsPath));
       const total = totalGastos(persistedItems.map((item) => item.fields));
+      faturasAtualizadas.push({ ym: destino.ym, quantidade: newItems.length, valor: total });
       if (destino.ym === body.ym) totalAtual = total;
       else futuras.push({ ym: destino.ym, quantidade: newItems.length });
       await etapa('firestore_write_invoice_total', () => commitFirestoreDocuments([{
@@ -133,7 +135,7 @@ export async function POST(request: Request) {
         fields: { valor: total, status: destino.invoice?.status ?? 'Pendente', origem: 'csv', atualizadaEm: new Date().toISOString() },
       }]));
     }
-    return NextResponse.json({ novos, ignorados, total: totalAtual, futuras: futuras.filter((fatura) => fatura.quantidade > 0) });
+    return NextResponse.json({ novos, ignorados, total: totalAtual, futuras: futuras.filter((fatura) => fatura.quantidade > 0), faturas: faturasAtualizadas });
   } catch (error) {
     const timedOut = error instanceof MercadoPagoTimeoutError;
     console.error('CSV import failed', {

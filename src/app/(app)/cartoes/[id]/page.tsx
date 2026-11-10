@@ -13,7 +13,7 @@ import { resumoCartao } from '@/lib/cartoes';
 import { editarLancamentoCsv, excluirFatura, FaturaPagaError, PremiumRequiredError, importarItens } from '@/lib/cartoes-db';
 import { useColecao } from '@/lib/colecao';
 import { decodificar, lerCsv, NOMES_BANCO, sugerirMesFatura, totalGastos, type ResultadoCsv } from '@/lib/csv';
-import { distribuirParcelamentos, resumirParcelamentos } from '@/lib/csv/parcelamentos';
+import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
 import { MESES, montarYm, rotuloYm, ymAtual } from '@/lib/datas';
 import { brl } from '@/lib/formato';
 import { chaveBase, SEM_CATEGORIA, type CategoriaComId } from '@/lib/categorias';
@@ -148,21 +148,20 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
   const [ano, setAno] = useState(Number(sugerido.split('-')[0]));
   const [importando, setImportando] = useState(false);
   const ym = montarYm(ano, mes);
-  const existente = faturas.find((f) => f.id === ym);
-  const bloqueada = existente?.status === 'Pago';
   const gastos = itensComRegras.filter((i) => !i.programado && !i.ignorado && i.valor > 0);
-  let resumoFuturas: ReturnType<typeof resumirParcelamentos> = [];
+  let faturasPlanejadas: ReturnType<typeof distribuirParcelamentos> = [];
   let erroDistribuicao = '';
-  try { resumoFuturas = resumirParcelamentos(distribuirParcelamentos(itensComRegras, ym), ym); }
+  try { faturasPlanejadas = distribuirParcelamentos(itensComRegras, ym); }
   catch (error) { erroDistribuicao = error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas deste arquivo.'; }
-  const faturaFuturaPaga = resumoFuturas.find((futura) => faturas.some((fatura) => fatura.id === futura.ym && fatura.status === 'Pago'));
+  const resumoFaturas = faturasPlanejadas.map((fatura) => ({ ym: fatura.ym, quantidade: fatura.itens.length, valor: totalGastos(fatura.itens) }));
+  const faturaPaga = resumoFaturas.find((prevista) => faturas.some((fatura) => fatura.id === prevista.ym && fatura.status === 'Pago'));
 
   async function confirmar() {
     setImportando(true);
     try {
       const r = await importarItens(uid, cartaoId, ym, res.itens);
-      const resumo = r.futuras?.length ? ` Parcelas futuras: ${r.futuras.map((f) => `${rotuloYm(f.ym)} (${f.quantidade})`).join(', ')}.` : '';
-      onFim({ tipo: 'ok', texto: `${rotuloYm(ym)}: ${r.novos} lançamento(s) novo(s), ${r.ignorados} já existente(s). Total da fatura: ${brl(r.total)}.${resumo}` });
+      const resumo = r.faturas.length ? ` Faturas atualizadas: ${r.faturas.map((f) => `${rotuloYm(f.ym)} (${f.quantidade} novo(s), total ${brl(f.valor)})`).join('; ')}.` : '';
+      onFim({ tipo: 'ok', texto: `${r.novos} lançamento(s) novo(s), ${r.ignorados} já existente(s).${resumo}` });
     } catch (e) {
       const texto = e instanceof FaturaPagaError
         ? e.message
@@ -185,20 +184,17 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
       </div>
       {regrasImportacao.carregando ? <div className="aviso aviso-info">Buscando suas regras salvas antes de importar…</div> : <p className="suave pequeno">As regras salvas de ignorar, pagamento ou gasto serão aplicadas também a este arquivo.</p>}
       {res.banco !== 'bradesco' && <div className="aviso aviso-alerta">Leitor automático para {NOMES_BANCO[res.banco]}: confira se o total acima bate com a sua fatura antes de confirmar.</div>}
-      <p className="suave pequeno">Escolha a fatura em que estes lançamentos serão cobrados. Compras de outubro normalmente entram na fatura paga em novembro.</p>
+      <p className="suave pequeno">A data da compra e o número da parcela determinam a fatura: uma compra feita em novembro, por exemplo, começa a ser cobrada na fatura de dezembro. Para lançamentos sem parcela, o mês de referência abaixo será usado como fatura.</p>
       <div className="grade-2">
-        <div className="campo"><label htmlFor="i-mes">Mês da fatura</label><select id="i-mes" value={mes} onChange={(e) => setMes(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div>
+        <div className="campo"><label htmlFor="i-mes">Mês de referência</label><select id="i-mes" value={mes} onChange={(e) => setMes(Number(e.target.value))}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div>
         <div className="campo"><label htmlFor="i-ano">Ano</label><input id="i-ano" type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></div>
       </div>
-      {bloqueada
-        ? <div className="aviso aviso-erro">A fatura de {rotuloYm(ym)} já está paga. Desfaça o pagamento para importar nela.</div>
-        : <div className="aviso aviso-ok">{existente ? `A fatura de ${rotuloYm(ym)} será atualizada; lançamentos já importados não são duplicados.` : `Será criada a fatura de ${rotuloYm(ym)}.`}</div>}
-      {resumoFuturas.length > 0 && <div className="aviso aviso-info">Parcelas futuras serão lançadas nas próximas faturas: {resumoFuturas.map((f) => `${rotuloYm(f.ym)} (${f.quantidade})`).join(', ')}. Elas entram uma vez no total do mês correspondente.</div>}
+      {resumoFaturas.length > 0 && <div className="aviso aviso-info">Distribuição prevista por fatura: {resumoFaturas.map((f) => `${rotuloYm(f.ym)} (${f.quantidade} lançamento(s), ${brl(f.valor)})`).join('; ')}. Os valores serão somados ao total de cada fatura.</div>}
       {erroDistribuicao && <div className="aviso aviso-erro" role="alert">{erroDistribuicao}</div>}
-      {faturaFuturaPaga && <div className="aviso aviso-erro">A fatura futura de {rotuloYm(faturaFuturaPaga.ym)} já está paga. Desfaça o pagamento para importar o parcelamento.</div>}
+      {faturaPaga && <div className="aviso aviso-erro">A fatura de {rotuloYm(faturaPaga.ym)} já está paga. Desfaça o pagamento para importar lançamentos nela.</div>}
       <div className="acoes" style={{ justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-sec" onClick={() => onFim(null)}>Cancelar</button>
-        <button type="button" className="btn" disabled={bloqueada || importando || !!erroDistribuicao || !!faturaFuturaPaga || regrasImportacao.carregando} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
+        <button type="button" className="btn" disabled={importando || !!erroDistribuicao || !!faturaPaga || regrasImportacao.carregando} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
       </div>
     </div>
   );
