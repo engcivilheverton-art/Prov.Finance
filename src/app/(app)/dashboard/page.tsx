@@ -161,7 +161,7 @@ export default function DashboardPage() {
     <>
       <div className="pagina-cab">
         <div><div className="sub">Visão geral</div><h1>{nome ? `Olá, ${nome.split(' ')[0]}` : 'Painel financeiro'}</h1></div>
-        <SeletorMes ym={ym} onChange={setYm} />
+        <div className="acoes painel-acoes"><Link href={`/relatorios?ym=${encodeURIComponent(ym)}`} className="btn btn-sec btn-mini">Relatórios</Link><SeletorMes ym={ym} onChange={setYm} /></div>
       </div>
 
       {perfilPronto && !perfil && (

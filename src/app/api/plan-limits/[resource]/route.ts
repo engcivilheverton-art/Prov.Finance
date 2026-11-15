@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { confirmarAcessoPremium, createLimitedResource, FreePlanLimitError, verifyFirebaseIdToken } from '@/lib/server-billing';
 
 const FIELDS = {
-  cards: new Set(['nome', 'bandeira', 'diaVencimento', 'limite', 'corBase']),
+  cards: new Set(['nome', 'banco', 'bandeira', 'diaVencimento', 'limite', 'corBase']),
   debts: new Set(['nome', 'credor', 'categoria', 'parcela', 'inicio', 'diaVencimento', 'parcelas']),
   bankAccounts: new Set(['nome', 'categoria', 'valor', 'dia']),
 } as const;

@@ -8,6 +8,8 @@ const CAMINHOS = {
   user: (<><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>),
   calc: (<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 12h2m4 0h2m-8 4h2m4 0h2" /></>),
   box: (<><path d="M3 8h18l-1 13H4L3 8Z" /><path d="m3 8 3-5h12l3 5M9 12h6m-3-3v6" /></>),
+  help: (<><circle cx="12" cy="12" r="9" /><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.8c-1.2 1.1-1.9 1.4-1.9 3.2M12 17.5h.01" /></>),
+  report: (<><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M14 3v5h5M9 13h6m-6 4h6" /></>),
 };
 
 export type NomeIcone = keyof typeof CAMINHOS;

@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icone, type NomeIcone } from '@/components/Icone';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 
 const ITENS: { href: string; rotulo: string; icone: NomeIcone }[] = [
@@ -14,6 +15,8 @@ const ITENS: { href: string; rotulo: string; icone: NomeIcone }[] = [
   { href: '/caixinhas', rotulo: 'Caixinhas', icone: 'box' },
   { href: '/fixas', rotulo: 'Fixas', icone: 'rep' },
   { href: '/ferramentas', rotulo: 'Facilities', icone: 'calc' },
+  { href: '/relatorios', rotulo: 'Relatórios', icone: 'report' },
+  { href: '/suporte', rotulo: 'Suporte', icone: 'help' },
   { href: '/perfil', rotulo: 'Perfil', icone: 'user' },
 ];
 
@@ -48,6 +51,7 @@ export function AppShell({ children, requireAuth = true }: { children: ReactNode
         </div>
         <div className="menu-itens"><Link href="/planos" className="menu-item" aria-current={pathname === '/planos' ? 'page' : undefined}>Planos e assinatura</Link></div>
         <div className="menu-rodape">
+          <ThemeToggle />
           {user ? <>
             {user.displayName || user.email}
             <button type="button" className="btn" onClick={() => void sair()}>Sair</button>
@@ -60,7 +64,10 @@ export function AppShell({ children, requireAuth = true }: { children: ReactNode
           <div className="topo-mobile">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="logo" src="/logo-prov.png" alt="PROV" />
-            {user ? <button type="button" onClick={() => void sair()}>Sair</button> : <Link href="/login">Entrar</Link>}
+            <div className="topo-mobile-acoes">
+              <ThemeToggle />
+              {user ? <button type="button" onClick={() => void sair()}>Sair</button> : <Link href="/login">Entrar</Link>}
+            </div>
           </div>
           {children}
         </div>

@@ -24,6 +24,7 @@ export type Com<T> = T & { id: string };
 
 export type Cartao = {
   nome: string;
+  banco?: string;
   bandeira: string;
   diaVencimento?: number;
   limite?: number;
@@ -74,16 +75,25 @@ export type ContaFixa = { nome: string; categoria: string; valor: number; dia?: 
 
 export type PagamentosFixas = { pagas: Record<string, boolean> };
 
-// Paleta da marca (mesmos tons do site de vendas) mais algumas variações.
+// Cores sólidas inspiradas na marca PROV e nas instituições disponíveis no cadastro.
 export const PALETA_CARTAO = [
-  { nome: 'Marinho', base: '#142b4a', fim: '#3d5675' },
-  { nome: 'Verde', base: '#047857', fim: '#10b981' },
-  { nome: 'Aço', base: '#55677f', fim: '#a9c4dc' },
-  { nome: 'Dourado', base: '#8a6d1f', fim: '#d4af37' },
-  { nome: 'Grafite', base: '#0f172a', fim: '#475569' },
-  { nome: 'Petróleo', base: '#0b4f5c', fim: '#2ba39b' },
-  { nome: 'Roxo', base: '#4c1d95', fim: '#8b5cf6' },
-  { nome: 'Vinho', base: '#7f1d1d', fim: '#e0524a' },
+  { nome: 'Marinho', base: '#142b4a' },
+  { nome: 'Verde', base: '#047857' },
+  { nome: 'Aço', base: '#55677f' },
+  { nome: 'Dourado', base: '#8a6d1f' },
+  { nome: 'Grafite', base: '#0f172a' },
+  { nome: 'Petróleo', base: '#0b4f5c' },
+  { nome: 'Roxo', base: '#4c1d95' },
+  { nome: 'Vinho', base: '#7f1d1d' },
+  { nome: 'Itaú', base: '#b84d00' },
+  { nome: 'Caixa', base: '#005ca9' },
+  { nome: 'Santander', base: '#c8102e' },
+  { nome: 'Banco do Brasil', base: '#003a70' },
+  { nome: 'C6', base: '#292929' },
+  { nome: 'Mercado Pago', base: '#007eb5' },
+  { nome: 'Inter', base: '#c94e00' },
+  { nome: 'Bradesco', base: '#b00020' },
+  { nome: 'Nubank', base: '#6a00ad' },
 ] as const;
 
 export const CATEGORIAS_DIVIDA = [

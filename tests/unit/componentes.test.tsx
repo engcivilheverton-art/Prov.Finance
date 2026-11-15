@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CalendarioGastos } from '@/components/CalendarioGastos';
-import { CorpoBarras, GraficoRosca } from '@/components/graficos';
+import { CorpoBarras, DicaBarras, GraficoRosca, montarDicaBarras } from '@/components/graficos';
 import { ResumoCategorias, SeletorCategoria } from '@/components/CategoriasCSV';
 import { CATEGORIAS_PADRAO, SEM_CATEGORIA, idCategoriaPadrao } from '@/lib/categorias';
 import type { Compra } from '@/lib/analises';
@@ -23,12 +23,35 @@ describe('GraficoBarras (corpo SVG)', () => {
     );
     expect(html).toContain('<svg');
     expect(html).toContain('aria-label="Despesas"');
-    expect(conta(html, 'rx="3"')).toBe(5); // 5 valores não nulos
+    expect(html).not.toContain(' rx=');
     expect(html).toContain('<polyline');
     expect(conta(html, 'class="ponto"')).toBe(3);
     expect(conta(html, '<tr>')).toBe(4); // cabeçalho + 3 meses
     expect(html).toContain('Nov/26');
     expect(limpar(html)).toContain('R$ 400,00');
+  });
+
+  it('mostra no tooltip apenas o segmento apontado, com mês, valor e percentual das despesas', () => {
+    const dica = montarDicaBarras(
+      { tipo: 'segmento', mes: 0, serie: 0 },
+      rotulos,
+      [
+        { nome: 'Cartões', cor: 'blue', valores: [100, 200, 0] },
+        { nome: 'Dívidas', cor: 'red', valores: [50, 50, 50] },
+      ],
+      { nome: 'Renda', cor: 'green', valores: [400, 400, 400] },
+    );
+    expect(dica).toEqual({
+      rotulo: 'Nov/26',
+      linhas: [{ nome: 'Cartões', cor: 'blue', valor: 100, percentual: 67 }],
+    });
+    const html = limpar(renderToStaticMarkup(<DicaBarras dica={dica!} left={200} alinhamento="-50%" />));
+    expect(html).toContain('Nov/26');
+    expect(html).toContain('Cartões');
+    expect(html).toContain('R$ 100,00');
+    expect(html).toContain('67% das despesas');
+    expect(html).not.toContain('Dívidas');
+    expect(html).not.toContain('Renda');
   });
 
   it('pinta de vermelho os saldos negativos de uma série única', () => {
