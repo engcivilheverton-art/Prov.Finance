@@ -247,7 +247,9 @@ export default function CartaoDetalhe() {
   const faturasPagas = faturas.filter((f) => f.status === 'Pago');
   const faturasEmAberto = faturas.filter((f) => f.status !== 'Pago');
   const proximaFatura = resumo.proxima;
-  const outrasFaturas = faturasEmAberto.filter((f) => f.id !== proximaFatura?.id);
+  const outrasFaturas = faturasEmAberto
+    .filter((f) => f.id !== proximaFatura?.id)
+    .sort((a, b) => a.id.localeCompare(b.id));
   const renderFatura = (f: Com<Fatura>, tipo: 'proxima' | 'outra' | 'paga') => {
     const atrasada = f.status === 'Pendente' && f.id < ymAtual();
     return (
