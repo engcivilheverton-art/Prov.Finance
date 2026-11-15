@@ -72,7 +72,7 @@ function ehCabecalhoBradesco(l: string) {
   return l.startsWith('Data;') && l.includes('Valor(R$)');
 }
 
-function lerBlocoBradesco(linhas: string[], de: number, programado: boolean): ItemFatura[] {
+function lerBlocoBradesco(linhas: string[], de: number): ItemFatura[] {
   const itens: ItemFatura[] = [];
   for (let i = de; i < linhas.length; i++) {
     const l = linhas[i];
@@ -86,7 +86,6 @@ function lerBlocoBradesco(linhas: string[], de: number, programado: boolean): It
     const { descricao, parcela } = extrairParcela((c[1] ?? '').trim());
     const item: ItemFatura = { data, descricao, valor };
     if (parcela) item.parcela = parcela;
-    if (programado) item.programado = true;
     itens.push(item);
   }
   return itens;
@@ -97,8 +96,10 @@ function lerBradesco(linhas: string[]): ResultadoCsv {
   const dataLinha = linhas.find((l) => l.startsWith('Data:'))?.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   const cabs = linhas.map((l, i) => (ehCabecalhoBradesco(l) ? i : -1)).filter((i) => i >= 0);
   const itens: ItemFatura[] = [];
-  if (cabs[0] !== undefined) itens.push(...lerBlocoBradesco(linhas, cabs[0] + 1, false));
-  if (cabs[1] !== undefined) itens.push(...lerBlocoBradesco(linhas, cabs[1] + 1, true));
+  // O Bradesco separa a mesma fatura por cartão físico/virtual. Consolidamos
+  // todos os blocos no cartão selecionado pelo usuário, sem marcar os demais
+  // como lançamentos programados.
+  for (const cabecalho of cabs) itens.push(...lerBlocoBradesco(linhas, cabecalho + 1));
   return {
     banco: 'bradesco',
     itens,

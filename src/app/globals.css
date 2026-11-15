@@ -118,6 +118,13 @@ h2 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; color: var(--
 .linha:last-child { border-bottom: none; }
 .linha .grow { flex: 1; min-width: 160px; }
 .linha .titulo { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.faturas-anteriores { margin-bottom: 1rem; }
+.faturas-pagas { margin-top: .45rem; }
+.fatura-item { border-radius: 14px; transition: opacity .15s ease, background-color .15s ease; }
+.fatura-proxima { padding: 0 .9rem; margin-bottom: .45rem; border: 1px solid color-mix(in srgb, var(--g) 35%, var(--line)); background: var(--gs); }
+.fatura-outra { opacity: .68; }
+.fatura-outra:hover, .fatura-outra:focus-within { opacity: 1; }
+.fatura-paga { padding: 0 .7rem; border-bottom: 1px solid var(--line); }
 .grupo-titulo { font-size: .8rem; font-weight: 700; color: var(--mut); margin: 1.5rem 0 .5rem; }
 .vazio { padding: 2.5rem 1rem; text-align: center; color: var(--mut); }
 .check { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); background: var(--card); display: grid; place-items: center; cursor: pointer; flex-shrink: 0; color: var(--btn); font-size: .85rem; font-weight: 800; }

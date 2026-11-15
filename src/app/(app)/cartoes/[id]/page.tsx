@@ -217,6 +217,7 @@ export default function CartaoDetalhe() {
   const [edicao, setEdicao] = useState<Com<Fatura> | 'nova' | null>(null);
   const [importacao, setImportacao] = useState<ResultadoCsv | null>(null);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
+  const [anterioresAbertas, setAnterioresAbertas] = useState(false);
   const [upgrade, setUpgrade] = useState(false);
   const [upgradeRecurso, setUpgradeRecurso] = useState('importação de CSV');
   const [gerenciadorAberto, setGerenciadorAberto] = useState(false);
@@ -242,6 +243,35 @@ export default function CartaoDetalhe() {
 
   if (cartoes.carregando) return <p className="suave">Carregando…</p>;
   if (!cartao || !uid) return <><p>Cartão não encontrado.</p><Link href="/cartoes">← Voltar</Link></>;
+
+  const faturasPagas = faturas.filter((f) => f.status === 'Pago');
+  const faturasEmAberto = faturas.filter((f) => f.status !== 'Pago');
+  const proximaFatura = resumo.proxima;
+  const outrasFaturas = faturasEmAberto.filter((f) => f.id !== proximaFatura?.id);
+  const renderFatura = (f: Com<Fatura>, tipo: 'proxima' | 'outra' | 'paga') => {
+    const atrasada = f.status === 'Pendente' && f.id < ymAtual();
+    return (
+      <div key={f.id} className={`fatura-item fatura-${tipo}`}>
+        <div className="linha">
+          <div className="grow">
+            <div className="titulo">{rotuloYm(f.id)}</div>
+            <div className="pequeno suave">{f.origem === 'csv' ? 'Importada do CSV' : 'Lançada manualmente'}</div>
+          </div>
+          {tipo === 'proxima' && <span className="selo selo-azul">Próxima fatura</span>}
+          <span className={`selo ${f.status === 'Pago' ? 'selo-verde' : atrasada ? 'selo-verm' : 'selo-ambar'}`}>{f.status === 'Pago' ? 'Paga' : atrasada ? 'Em atraso' : 'Em aberto'}</span>
+          <span className="num">{brl(f.valor)}</span>
+          <div className="acoes">
+            <button type="button" className="btn btn-sec btn-mini" onClick={() => setAbertas((a) => ({ ...a, [f.id]: !a[f.id] }))}>{abertas[f.id] ? 'Ocultar' : 'Lançamentos'}</button>
+            <button type="button" className="btn btn-sec btn-mini" onClick={() => void faturasCol.mesclar(f.id, { status: f.status === 'Pago' ? 'Pendente' : 'Pago' })}>{f.status === 'Pago' ? 'Desfazer' : 'Marcar paga'}</button>
+            <button type="button" className="btn btn-sec btn-mini" onClick={() => setEdicao(f)}>Editar</button>
+            <button type="button" className="btn btn-perigo btn-mini" aria-label={`Excluir fatura de ${rotuloYm(f.id)}`} onClick={() => { if (confirm(`Excluir a fatura de ${rotuloYm(f.id)} e seus lançamentos?`)) void excluirFatura(uid, id, f.id); }}>✕</button>
+          </div>
+        </div>
+        {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} origem={f.origem} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
+          onDefinirRegra={categoriasCSV.definirRegra} onUpgrade={pedirUpgradeCategorias} /></div>}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -291,29 +321,16 @@ export default function CartaoDetalhe() {
             <div className="vazio">Nenhuma fatura ainda. Importe o CSV do banco ou cadastre uma fatura manualmente.</div>
           ) : (
             <div className="lista">
-              {faturas.map((f) => {
-                const atrasada = f.status === 'Pendente' && f.id < ymAtual();
-                return (
-                  <div key={f.id}>
-                    <div className="linha">
-                      <div className="grow">
-                        <div className="titulo">{rotuloYm(f.id)}</div>
-                        <div className="pequeno suave">{f.origem === 'csv' ? 'Importada do CSV' : 'Lançada manualmente'}</div>
-                      </div>
-                      <span className={`selo ${f.status === 'Pago' ? 'selo-verde' : atrasada ? 'selo-verm' : 'selo-ambar'}`}>{f.status === 'Pago' ? 'Paga' : atrasada ? 'Em atraso' : 'Em aberto'}</span>
-                      <span className="num">{brl(f.valor)}</span>
-                      <div className="acoes">
-                        <button type="button" className="btn btn-sec btn-mini" onClick={() => setAbertas((a) => ({ ...a, [f.id]: !a[f.id] }))}>{abertas[f.id] ? 'Ocultar' : 'Lançamentos'}</button>
-                        <button type="button" className="btn btn-sec btn-mini" onClick={() => void faturasCol.mesclar(f.id, { status: f.status === 'Pago' ? 'Pendente' : 'Pago' })}>{f.status === 'Pago' ? 'Desfazer' : 'Marcar paga'}</button>
-                        <button type="button" className="btn btn-sec btn-mini" onClick={() => setEdicao(f)}>Editar</button>
-                        <button type="button" className="btn btn-perigo btn-mini" aria-label={`Excluir fatura de ${rotuloYm(f.id)}`} onClick={() => { if (confirm(`Excluir a fatura de ${rotuloYm(f.id)} e seus lançamentos?`)) void excluirFatura(uid, id, f.id); }}>✕</button>
-                      </div>
-                    </div>
-                    {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} origem={f.origem} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
-                      onDefinirRegra={categoriasCSV.definirRegra} onUpgrade={pedirUpgradeCategorias} /></div>}
-                  </div>
-                );
-              })}
+              {faturasPagas.length > 0 && (
+                <section className="faturas-anteriores">
+                  <button type="button" className="btn btn-sec btn-mini" aria-expanded={anterioresAbertas} onClick={() => setAnterioresAbertas((abertas) => !abertas)}>
+                    {anterioresAbertas ? 'Ocultar faturas anteriores' : `Ver faturas anteriores (${faturasPagas.length})`}
+                  </button>
+                  {anterioresAbertas && <div className="lista faturas-pagas">{faturasPagas.map((f) => renderFatura(f, 'paga'))}</div>}
+                </section>
+              )}
+              {proximaFatura && renderFatura(proximaFatura, 'proxima')}
+              {outrasFaturas.map((f) => renderFatura(f, 'outra'))}
             </div>
           )}
         </div>
