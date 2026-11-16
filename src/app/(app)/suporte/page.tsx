@@ -36,7 +36,7 @@ export default function SuportePage() {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-cab"><h2>Fale com a equipe PROV</h2></div>
         <div className="card-corpo pilha">
-          <p className="suave">Conte o que aconteceu. Inclua detalhes que ajudem a entender o problema, como a ferramenta usada e as etapas que você seguiu.</p>
+          <p className="suave">Conte o que aconteceu. Inclua detalhes que ajudem a entender o problema, como a ferramenta usada e as etapas que você seguiu. Não inclua senha, credenciais bancárias ou número completo de cartão.</p>
           <form className="pilha" onSubmit={enviar}>
             <div className="grade-2">
               <div className="campo">
@@ -65,7 +65,7 @@ export default function SuportePage() {
         </div>
       </div>
 
-      <p className="suave pequeno">Contato: <a href={`mailto:${EMAIL_SUPORTE}`}>{EMAIL_SUPORTE}</a>. O PROV abrirá um rascunho no aplicativo de e-mail do seu dispositivo; a mensagem só será enviada quando você confirmar o envio por lá.</p>
+      <p className="suave pequeno">Contato: <a href={`mailto:${EMAIL_SUPORTE}`}>{EMAIL_SUPORTE}</a>. O PROV abrirá um rascunho no aplicativo de e-mail do seu dispositivo; a mensagem só será enviada quando você confirmar o envio por lá. <a href="/privacidade">Política de Privacidade</a>.</p>
     </section>
   );
 }

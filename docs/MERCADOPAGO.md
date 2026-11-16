@@ -2,15 +2,15 @@
 
 O aplicativo cria assinaturas a partir do backend em `POST /api/billing/checkout`, com preço definido em `src/lib/planos.ts`. O Mercado Pago hospeda o checkout; o app não confia no retorno do navegador para conceder Premium.
 
-## Variáveis na Vercel
+## Variáveis na Netlify
 
-No projeto `prov-financeiro`, configure Preview e Production separadamente:
+No projeto Netlify `prov-financeiro`, configure Deploy Preview e Production separadamente:
 
-| Variável | Preview | Production |
+| Variável | Deploy Preview | Production |
 | --- | --- | --- |
 | `MERCADOPAGO_ACCESS_TOKEN` | Credencial de teste do vendedor de teste | Credencial real da aplicação |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Segredo HMAC do webhook de teste | Segredo HMAC do webhook de produção |
-| `NEXT_PUBLIC_APP_URL` | `https://prov-financeiro-preview.vercel.app` | `https://prov-financeiro.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | URL do Deploy Preview configurado | `https://prov-financeiro.netlify.app` |
 | `MERCADOPAGO_TEST_PAYER_EMAIL` | E-mail do comprador de teste (opcional) | Não configurar |
 
 O backend também exige no ambiente de produção Firebase `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL` e `FIREBASE_ADMIN_PRIVATE_KEY`. Nunca coloque tokens, chaves privadas ou segredo HMAC em `NEXT_PUBLIC_*`, no GitHub ou na landing.
@@ -22,8 +22,8 @@ Depois de alterar variáveis, faça um novo deployment desse ambiente.
 Configure a URL pública do ambiente correspondente:
 
 ```text
-Preview:    https://prov-financeiro-preview.vercel.app/api/webhooks/mercadopago
-Production: https://prov-financeiro.vercel.app/api/webhooks/mercadopago
+Deploy Preview: https://<url-do-deploy-preview>/api/webhooks/mercadopago
+Production:     https://prov-financeiro.netlify.app/api/webhooks/mercadopago
 ```
 
 Ative os eventos `subscription_preapproval` e `subscription_authorized_payment`. Copie o segredo de assinatura HMAC exibido para aquele webhook e salve no escopo correspondente de `MERCADOPAGO_WEBHOOK_SECRET`. O endpoint rejeita assinaturas inválidas e consulta o estado atual da assinatura e da última fatura à API do Mercado Pago.

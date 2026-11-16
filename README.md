@@ -1,6 +1,6 @@
 # PROV. — aplicativo financeiro
 
-Aplicativo Next.js 16 (App Router) com Firebase Authentication, Cloud Firestore e backend de assinaturas Mercado Pago. Este repositório é independente do repositório `prov-landing` e deve ter seu próprio projeto/deploy na Vercel.
+Aplicativo Next.js 16 (App Router) com Firebase Authentication, Cloud Firestore e backend de assinaturas Mercado Pago. Este repositório é independente do repositório `prov-landing` e tem projeto próprio na Netlify. O app público atual é `https://prov-financeiro.netlify.app`.
 
 ## Rodar localmente
 
@@ -53,7 +53,7 @@ Rotas: `POST /api/billing/checkout`, `GET /api/billing/status`, `POST /api/billi
 
 ## Variáveis de ambiente
 
-Configure-as no projeto Vercel do **app**. Os valores abaixo são nomes, nunca cole credenciais reais neste arquivo.
+Configure-as no projeto Netlify do **app**. Os valores abaixo são nomes, nunca cole credenciais reais neste arquivo.
 
 | Variável | Uso |
 |---|---|
@@ -65,18 +65,18 @@ Configure-as no projeto Vercel do **app**. Os valores abaixo são nomes, nunca c
 | `NEXT_PUBLIC_APP_URL` | Origem HTTPS do app neste ambiente; HTTP permitido apenas em localhost |
 | `FIREBASE_ADMIN_PROJECT_ID` | Projeto Firebase acessado pelo backend |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Conta de serviço privada do backend |
-| `FIREBASE_ADMIN_PRIVATE_KEY` | Chave privada da mesma conta; preservar as quebras de linha `\\n` na Vercel |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | Chave privada da mesma conta; preservar as quebras de linha `\\n` na Netlify |
 | `MERCADOPAGO_ACCESS_TOKEN` | Access Token privado da aplicação Mercado Pago deste ambiente |
 | `MERCADOPAGO_TEST_PAYER_EMAIL` | Opcional em local/Preview para usar o e-mail de comprador de teste; nunca usar em Production |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Segredo HMAC da URL de webhook deste ambiente |
 
 Não crie valores reais em `.env.example` nem os versiona. A chave privada Firebase, Access Token e segredo HMAC não podem usar prefixo `NEXT_PUBLIC_`.
 
-### Ambientes da Vercel
+### Ambientes da Netlify
 
-- **Preview**: URL própria de Preview; Firebase de teste/emulador isolado quando disponível; Access Token de credenciais de teste da aplicação vendedora; e-mail de conta compradora de teste se o fluxo exigir; segredo HMAC do webhook de teste. Credenciais de teste Mercado Pago podem ter prefixos diferentes por produto/conta, portanto escolha pelo ambiente no painel e não pelo prefixo.
+- **Deploy Previews/branch deploys**: URL própria do deploy; Firebase de teste/emulador isolado quando disponível; Access Token de credenciais de teste da aplicação vendedora; e-mail de conta compradora de teste se o fluxo exigir; segredo HMAC do webhook de teste. Credenciais de teste Mercado Pago podem ter prefixos diferentes por produto/conta, portanto escolha pelo ambiente no painel e não pelo prefixo.
 - **Production**: URL oficial HTTPS; Firebase de produção; Access Token de produção da aplicação; sem `MERCADOPAGO_TEST_PAYER_EMAIL`; segredo HMAC configurado para o webhook de produção.
-- Configure os escopos Preview e Production separadamente. Variáveis `NEXT_PUBLIC_*` são incorporadas ao build do frontend, então faça novo deploy após alterar valores.
+- Configure os escopos Deploy Preview e Production separadamente. Variáveis `NEXT_PUBLIC_*` são incorporadas ao build do frontend, então faça novo deploy após alterar valores.
 
 O projeto Firebase precisa ter E-mail/senha e Google habilitados em Authentication. Publique `firestore.rules` e índices do repositório no projeto correto após validar as regras. A conta de serviço do Firebase deve ter as permissões necessárias para Authentication e Firestore.
 

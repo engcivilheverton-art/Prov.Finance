@@ -27,7 +27,7 @@ vi.mock('@/lib/mercadopago-server', () => ({
   getLatestAuthorizedInvoice: vi.fn(), getPreapproval: vi.fn(), hasConfirmedLatestInvoice: vi.fn(), matchesPlan: vi.fn(),
 }));
 
-import { commitFirestoreDocuments, createLimitedResource, FreePlanLimitError } from '@/lib/server-billing';
+import { commitFirestoreDocuments, createLimitedResource, FreePlanLimitError, recordSubscriptionWebhookEvent } from '@/lib/server-billing';
 
 describe('commitFirestoreDocuments', () => {
   beforeEach(() => {
@@ -83,5 +83,20 @@ describe('commitFirestoreDocuments', () => {
 
     await expect(createLimitedResource('ana', 'cards', { nome: 'Premium' }, true)).resolves.toBe('created-resource');
     expect(mocks.resourceCreate).toHaveBeenCalledWith({ nome: 'Premium' });
+  });
+
+  it('não recria dados de assinatura quando a conta ou o contrato já foi removido', async () => {
+    mocks.txGet.mockImplementation(async (ref: { path: string }) => ref.path.endsWith('/assinatura/status')
+      ? { exists: false, data: () => undefined }
+      : { exists: false });
+
+    const result = await recordSubscriptionWebhookEvent({
+      uid: 'ana', preapprovalId: 'preapproval-1', plan: 'mensal', status: 'canceled',
+      type: 'subscription_preapproval', requestId: 'request-1', resourceId: 'preapproval-1',
+    });
+
+    expect(result).toBe('ignored');
+    expect(mocks.txCreate).not.toHaveBeenCalled();
+    expect(mocks.txSet).not.toHaveBeenCalled();
   });
 });

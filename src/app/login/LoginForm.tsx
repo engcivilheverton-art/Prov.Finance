@@ -7,7 +7,7 @@ import { planoValido, type PlanoId } from '@/lib/planos';
 
 type Modo = 'entrar' | 'criar';
 
-export default function LoginForm({ initialMode, plan }: { initialMode: Modo; plan: string }) {
+export default function LoginForm({ initialMode, plan, accountDeleted = false }: { initialMode: Modo; plan: string; accountDeleted?: boolean }) {
   const { user, loading, entrarComEmail, criarConta, entrarComGoogle, recuperarSenha } = useAuth();
   const router = useRouter();
   const [modo, setModo] = useState<Modo>(initialMode);
@@ -101,6 +101,7 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
         <img className="login-logo logo" src="/logo-prov.png" alt="PROV" />
         <div className="eyebrow" style={{ textAlign: 'center' }}>Gestão financeira pessoal</div>
         <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>{plano ? 'Continue para contratar o Premium' : 'Assuma o controle da sua vida financeira.'}</h1>
+        {accountDeleted && <div className="aviso aviso-ok" role="status">A conta e os dados do PROV foram excluídos.</div>}
         {plano && <div className="aviso aviso-info">Plano escolhido: <strong>{plano === 'mensal' ? 'Premium mensal — R$ 9,90/mês' : 'Premium anual — R$ 7,90/mês (R$ 94,80 cobrados a cada 12 meses)'}</strong>. Após entrar ou criar sua conta, você seguirá para o checkout. O acesso Premium só será liberado após confirmação do pagamento.</div>}
 
         <div className="abas" role="tablist" aria-label="Acesso">
@@ -121,6 +122,9 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
           <button type="submit" className="btn" disabled={enviando}>{enviando ? 'Aguarde…' : modo === 'entrar' ? 'Entrar' : plano ? 'Criar conta e continuar' : 'Criar conta grátis'}</button>
           {modo === 'entrar' && <button type="button" className="btn-link" onClick={esqueciSenha} disabled={enviando}>Esqueci minha senha</button>}
         </form>
+        <p className="suave pequeno" style={{ marginTop: '1rem', textAlign: 'center' }}>
+          Ao usar o PROV, consulte nossa <a href="/privacidade">Política de Privacidade</a>. O login é processado pelo Firebase; o PROV não recebe sua senha.
+        </p>
       </div>
     </main>
   );

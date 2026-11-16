@@ -6,7 +6,7 @@ import { FREE_LIMITS } from '@/lib/planos';
 import { chaveBase } from '@/lib/categorias';
 export { hasValidWebhookSignature } from '@/lib/webhook-signature';
 
-export type VerifiedUser = { uid: string; email?: string; emailVerified?: boolean; name?: string };
+export type VerifiedUser = { uid: string; email?: string; emailVerified?: boolean; name?: string; authTime?: number };
 export type Subscription = {
   status: string;
   plan: string;
@@ -21,7 +21,7 @@ export class InvalidFirebaseTokenError extends Error {}
 export async function verifyFirebaseIdToken(token: string): Promise<VerifiedUser> {
   try {
     const claims = await adminAuth().verifyIdToken(token, true);
-    return { uid: claims.uid, email: claims.email, emailVerified: claims.email_verified === true, name: claims.name };
+    return { uid: claims.uid, email: claims.email, emailVerified: claims.email_verified === true, name: claims.name, authTime: claims.auth_time };
   } catch {
     throw new InvalidFirebaseTokenError('Token Firebase inválido ou expirado.');
   }
@@ -183,9 +183,12 @@ export async function recordSubscriptionWebhookEvent(input: {
     if (event.exists) return 'duplicate';
     const current = subscription.data() ?? {};
     const sameContract = current.preapprovalId === input.preapprovalId && current.plan === input.plan;
+    // Do not recreate personal event documents after an account has been deleted
+    // or when a provider notification no longer matches the saved contract.
+    if (!sameContract) return 'ignored';
     const currentVersion = current.providerVersion;
     const olderProviderState = typeof input.providerVersion === 'number' && typeof currentVersion === 'number' && input.providerVersion < currentVersion;
-    const applied = sameContract && !olderProviderState;
+    const applied = !olderProviderState;
     transaction.create(eventRef, {
       type: input.type,
       resourceId: input.resourceId,

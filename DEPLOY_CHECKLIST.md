@@ -1,28 +1,28 @@
 # PROV. — checklist de publicação independente
 
-> Use esta lista depois de revisar os arquivos. Nenhuma alteração na Vercel/Firebase/Mercado Pago e nenhum deploy foi executado por este trabalho.
+> Use esta lista depois de revisar os arquivos. Nesta revisão não alterei configurações de produção nem publiquei deploys.
 
-## 1. Repositórios e projetos Vercel
+## 1. Repositórios e projetos Netlify
 
 - [ ] Manter `prov-financeiro` e `prov-landing` como repositórios distintos.
-- [ ] Criar/importar um projeto Vercel para cada repositório.
+- [ ] Manter um projeto Netlify separado para cada repositório.
 - [ ] Conferir que cada projeto usa a raiz do repositório correta e instala com `npm ci`.
 - [ ] Definir domínio/URLs finais e o `NEXT_PUBLIC_APP_URL` em cada ambiente da landing.
-- [ ] Garantir que `GET https://<app>/api/billing/plans` seja acessível a partir do servidor da landing. Proteção SSO de Preview pode impedir essa consulta.
+- [ ] Garantir que `GET https://<app>/api/billing/plans` seja acessível a partir do servidor da landing. Proteção do Deploy Preview pode impedir essa consulta.
 
 ## 2. Firebase do app
 
 - [ ] Ativar E-mail/senha e Google em Firebase Authentication.
 - [ ] Confirmar que a configuração pública Firebase (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`) é do projeto correspondente ao ambiente.
 - [ ] Configurar a conta de serviço privada do backend (`FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`) com permissões necessárias de Authentication e Firestore.
-- [ ] Manter `NEXT_PUBLIC_USE_EMULATORS=true` apenas localmente; na Vercel usar `false` ou deixar sem valor.
+- [ ] Manter `NEXT_PUBLIC_USE_EMULATORS=true` apenas localmente; na Netlify usar `false` ou deixar sem valor.
 - [ ] Validar e publicar `firestore.rules` e `firestore.indexes.json` no projeto correto após os testes.
 - [ ] Não apagar nem migrar destrutivamente coleções/dados de usuários existentes. Ausência de documento de assinatura significa Free.
 
-## 3. Mercado Pago — Preview
+## 3. Mercado Pago — Deploy Preview
 
 - [ ] Usar credenciais de teste da aplicação do vendedor de teste no ambiente Preview. Confirme que o painel está na aba **Teste**; não deduza o ambiente somente pelo prefixo do token.
-- [ ] Configure em **Preview** do projeto `prov-financeiro`: `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL` e, se necessário, `MERCADOPAGO_TEST_PAYER_EMAIL` com a conta compradora de teste.
+- [ ] Configure em **Deploy Preview** do projeto `prov-financeiro`: `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL` e, se necessário, `MERCADOPAGO_TEST_PAYER_EMAIL` com a conta compradora de teste.
 - [ ] Não configure o e-mail de teste em Production.
 - [ ] Configure a notificação para `https://<preview-publico>/api/webhooks/mercadopago` e ative `subscription_preapproval` e `subscription_authorized_payment`.
 - [ ] Copie o segredo HMAC correspondente ao endpoint/ambiente para `MERCADOPAGO_WEBHOOK_SECRET` do Preview.
@@ -31,14 +31,14 @@
 ## 4. Mercado Pago — Production
 
 - [ ] Ativar as credenciais de produção e confirmar conta, aplicação, URL e dados comerciais antes da troca.
-- [ ] Configure em **Production** do app: Access Token real, segredo HMAC de produção, Firebase de produção e `NEXT_PUBLIC_APP_URL` HTTPS oficial.
+- [ ] Configure em **Production** do app Netlify: Access Token real, segredo HMAC de produção, Firebase de produção e `NEXT_PUBLIC_APP_URL` HTTPS oficial.
 - [ ] Não usar comprador de teste, e-mail de teste, credenciais de Preview ou segredo de webhook de Preview em Production.
-- [ ] Cadastrar webhook separado em `https://<dominio-oficial>/api/webhooks/mercadopago`, com `subscription_preapproval` e `subscription_authorized_payment`.
+- [ ] Cadastrar webhook de produção em `https://prov-financeiro.netlify.app/api/webhooks/mercadopago`, com `subscription_preapproval` e `subscription_authorized_payment`.
 - [ ] Definir a mesma URL oficial no `NEXT_PUBLIC_APP_URL` do app e no `NEXT_PUBLIC_APP_URL` da landing.
 
 ## 5. Variáveis da landing
 
-- [ ] Em Preview: `NEXT_PUBLIC_SITE_URL` aponta à landing Preview e `NEXT_PUBLIC_APP_URL` aponta ao app Preview.
+- [ ] Em Deploy Preview: `NEXT_PUBLIC_SITE_URL` aponta à landing Preview e `NEXT_PUBLIC_APP_URL` aponta ao app Preview.
 - [ ] Em Production: `NEXT_PUBLIC_SITE_URL` aponta ao domínio público da landing e `NEXT_PUBLIC_APP_URL` aponta ao app oficial.
 - [ ] Configurar `NEXT_PUBLIC_CONTACT_EMAIL` somente se quiser exibir contato no rodapé.
 - [ ] Não adicionar tokens/segredos Firebase ou Mercado Pago à landing.
@@ -58,11 +58,11 @@
 - [ ] Confirmar que usuário Free pode criar/editar cartão e fatura manualmente; CSV deve ser negado no servidor.
 - [ ] Confirmar que usuário não consegue escrever/alterar assinatura ou acessar dados de outro UID pelas regras do Firestore.
 - [ ] Confirmar que a seção Planos da landing recebe preços/benefícios de `/api/billing/plans` e que CTAs chegam às rotas correspondentes do app.
-- [ ] Fazer redeploy Preview depois de mudar variáveis; verificar autenticação, checkout e notificações antes de promover.
+- [ ] Fazer novo deploy Preview depois de mudar variáveis; verificar autenticação, checkout e notificações antes de promover.
 
 ## 7. Publicação
 
-- [ ] Revisar logs Vercel sem valores de token, chave privada ou dados pessoais.
+- [ ] Revisar logs Netlify sem valores de token, chave privada ou dados pessoais.
 - [ ] Confirmar domínio, páginas legais, URLs de retorno e política de privacidade/termos finais.
 - [ ] Promover Production somente após aprovação explícita do responsável pelo PROV.
 - [ ] Fazer uma compra real controlada depois da publicação e verificar webhook, assinatura remota e acesso no app.

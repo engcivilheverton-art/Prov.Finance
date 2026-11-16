@@ -185,6 +185,16 @@ dialog::backdrop { background: rgba(11, 22, 38, .55); }
 .separador { display: flex; align-items: center; gap: .8rem; margin: 1.1rem 0; color: var(--mut); font-size: .85rem; }
 .separador::before, .separador::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
+.legal-pagina { min-height: 100vh; padding: 2rem 1rem; background: var(--bg); }
+.legal-conteudo { max-width: 860px; margin: 0 auto; padding: clamp(1.25rem, 4vw, 2.5rem); }
+.legal-conteudo h1 { margin-bottom: .4rem; }
+.legal-conteudo .eyebrow { margin-bottom: .65rem; }
+.legal-conteudo section { margin-top: 1.8rem; }
+.legal-conteudo section h2 { margin-bottom: .65rem; }
+.legal-conteudo p, .legal-conteudo li { line-height: 1.7; }
+.legal-conteudo ul { padding-left: 1.25rem; display: grid; gap: .55rem; }
+.legal-voltar { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+
 /* Estrutura: menu lateral no desktop e trilho lateral recolhível no celular */
 .menu { position: fixed; inset: 0 auto 0 0; width: var(--menu); background: var(--card); border-right: 1px solid var(--line); display: flex; flex-direction: column; z-index: 20; }
 .menu-logo { padding: 1.5rem 1rem 1rem; text-align: center; }
@@ -239,6 +249,7 @@ details[open] .detalhe-seta { transform: rotate(90deg); }
 
 @media (max-width: 767px) {
   html { font-size: 16px; }
+  .legal-pagina { padding: .75rem; }
   .menu { inset: 0 auto 0 0; width: 60px; flex-direction: column; border-right: 1px solid var(--line); border-top: none; padding: max(.4rem, env(safe-area-inset-top, 0px)) 0 max(.4rem, env(safe-area-inset-bottom, 0px)); background: var(--card); transition: width .18s ease; }
   .menu-logo, .menu-rodape { display: none; }
   .menu-itens { flex-direction: column; padding: .35rem; gap: .2rem; }
