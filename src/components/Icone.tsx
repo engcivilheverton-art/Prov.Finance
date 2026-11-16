@@ -10,6 +10,8 @@ const CAMINHOS = {
   box: (<><path d="M3 8h18l-1 13H4L3 8Z" /><path d="m3 8 3-5h12l3 5M9 12h6m-3-3v6" /></>),
   help: (<><circle cx="12" cy="12" r="9" /><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.8c-1.2 1.1-1.9 1.4-1.9 3.2M12 17.5h.01" /></>),
   report: (<><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M14 3v5h5M9 13h6m-6 4h6" /></>),
+  crown: (<><path d="m2 8 5 4 5-8 5 8 5-4-2 12H4L2 8Z" /><path d="M5 16h14" /></>),
+  menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
 };
 
 export type NomeIcone = keyof typeof CAMINHOS;
