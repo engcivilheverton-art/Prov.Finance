@@ -123,7 +123,7 @@ export default function LoginForm({ initialMode, plan, accountDeleted = false }:
           {modo === 'entrar' && <button type="button" className="btn-link" onClick={esqueciSenha} disabled={enviando}>Esqueci minha senha</button>}
         </form>
         <p className="suave pequeno" style={{ marginTop: '1rem', textAlign: 'center' }}>
-          Ao usar o PROV, consulte nossa <a href="/privacidade">Política de Privacidade</a>. O login é processado pelo Firebase; o PROV não recebe sua senha.
+          Ao usar o PROV, consulte nossos <a href="https://prov-landing.netlify.app/termos">Termos de Uso</a> e a <a href="/privacidade">Política de Privacidade</a>. O login é processado pelo Firebase; o PROV não recebe sua senha.
         </p>
       </div>
     </main>
