@@ -101,7 +101,7 @@ export default function LoginForm({ initialMode, plan }: { initialMode: Modo; pl
         <img className="login-logo logo" src="/logo-prov.png" alt="PROV" />
         <div className="eyebrow" style={{ textAlign: 'center' }}>Gestão financeira pessoal</div>
         <h1 style={{ textAlign: 'center', fontSize: '1.6rem' }}>{plano ? 'Continue para contratar o Premium' : 'Assuma o controle da sua vida financeira.'}</h1>
-        {plano && <div className="aviso aviso-info">Plano escolhido: <strong>{plano === 'mensal' ? 'Premium mensal — R$ 11,99/mês' : 'Premium anual — R$ 119,88/ano'}</strong>. Após entrar ou criar sua conta, você seguirá para o checkout. O acesso Premium só será liberado após confirmação do pagamento.</div>}
+        {plano && <div className="aviso aviso-info">Plano escolhido: <strong>{plano === 'mensal' ? 'Premium mensal — R$ 9,90/mês' : 'Premium anual — R$ 7,90/mês (R$ 94,80 cobrados a cada 12 meses)'}</strong>. Após entrar ou criar sua conta, você seguirá para o checkout. O acesso Premium só será liberado após confirmação do pagamento.</div>}
 
         <div className="abas" role="tablist" aria-label="Acesso">
           <button type="button" role="tab" className="aba" aria-selected={modo === 'entrar'} onClick={() => { setModo('entrar'); setErro(''); }}>Entrar</button>

@@ -49,7 +49,7 @@
 - [ ] Rodar `npm ci`, `npm run typecheck`, `npm run lint` e `npm run build` na landing.
 - [ ] Criar conta Free por e-mail e por Google; confirmar redirecionamento ao painel sem checkout.
 - [ ] Confirmar que conta antiga sem `users/{uid}/assinatura/status` continua Free e mantém os dados.
-- [ ] Testar CTA mensal (R$ 11,99) e anual (R$ 119,88 a cada 12 meses); autenticar antes do checkout e confirmar que o preço vem do backend.
+- [ ] Testar CTA mensal (R$ 9,90) e anual (R$ 94,80 a cada 12 meses, equivalente a R$ 7,90/mês); autenticar antes do checkout e confirmar que o preço vem do backend.
 - [ ] Abandonar checkout e confirmar que não há Premium.
 - [ ] Testar webhook HMAC inválido, duplicado e evento repetido; confirmar que não libera acesso sem consulta válida à assinatura.
 - [ ] Confirmar status remoto pendente, autorizado, pausado e cancelado no app; validar cancelamento pelo app e no Mercado Pago.

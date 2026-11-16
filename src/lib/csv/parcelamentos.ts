@@ -38,6 +38,37 @@ function faturaDaParcela(item: ItemFatura, referenciaYm: string, numero: number)
 
 export type FaturaPlanejadaCsv = { ym: string; itens: ItemFatura[] };
 
+export type RemanejamentoFaturaCsv = { deYm: string; paraYm: string; quantidade: number };
+
+/** Move lançamentos planejados em faturas pagas para o primeiro mês seguinte que não esteja pago. */
+export function redirecionarFaturasPagas(
+  faturas: FaturaPlanejadaCsv[],
+  statusPorYm: ReadonlyMap<string, string | undefined>,
+): { faturas: FaturaPlanejadaCsv[]; remanejamentos: RemanejamentoFaturaCsv[] } {
+  const porMes = new Map<string, ItemFatura[]>();
+  const remanejamentos: RemanejamentoFaturaCsv[] = [];
+  for (const fatura of faturas) {
+    let destinoYm = fatura.ym;
+    if (statusPorYm.get(destinoYm) === 'Pago') {
+      let encontrouDestino = false;
+      for (let distancia = 1; distancia <= 240; distancia++) {
+        const candidato = somarMesesFatura(fatura.ym, distancia);
+        if (statusPorYm.get(candidato) !== 'Pago') {
+          destinoYm = candidato;
+          encontrouDestino = true;
+          break;
+        }
+      }
+      if (!encontrouDestino) throw new Error('Não foi possível encontrar uma fatura em aberto para receber estes lançamentos.');
+      remanejamentos.push({ deYm: fatura.ym, paraYm: destinoYm, quantidade: fatura.itens.length });
+    }
+    const itens = porMes.get(destinoYm) ?? [];
+    itens.push(...fatura.itens.map((item) => destinoYm === fatura.ym ? item : { ...item, competenciaYm: destinoYm }));
+    porMes.set(destinoYm, itens);
+  }
+  return { faturas: [...porMes.entries()].map(([ym, itens]) => ({ ym, itens })), remanejamentos };
+}
+
 /** Distribui cada parcela usando a data da compra; parcela 1 comprada em novembro vence na fatura de dezembro. */
 export function distribuirParcelamentos(itens: ItemFatura[], ym: string): FaturaPlanejadaCsv[] {
   const porMes = new Map<string, ItemFatura[]>();

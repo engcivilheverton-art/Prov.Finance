@@ -44,8 +44,8 @@ export default function PlanosPage() {
           <section className="card" key={plano.id}>
             <div className="card-cab"><h2>{plano.nome}</h2></div>
             <div className="card-corpo">
-              <p style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0 0 .3rem' }}>{moeda(plano.valor)}<span className="pequeno suave">/{plano.id === 'mensal' ? 'mês' : 'ano'}</span></p>
-              <p className="suave">{plano.id === 'mensal' ? 'Cobrança recorrente mensal.' : 'Cobrança recorrente a cada 12 meses.'}</p>
+              <p style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0 0 .3rem' }}>{moeda(plano.id === 'mensal' ? plano.valor : plano.valor / 12)}<span className="pequeno suave">/mês</span></p>
+              <p className="suave">{plano.id === 'mensal' ? 'Cobrança recorrente mensal.' : `Cobrança recorrente de ${moeda(plano.valor)} a cada 12 meses.`}</p>
               <ul className={estilos.recursos}>{RECURSOS.premium.map((recurso) => <li key={recurso}>{recurso}</li>)}</ul>
               {!assinatura.carregando && !assinatura.premium && <Link className="btn" href={`/cadastro?plano=${plano.id}`} style={{ display: 'inline-flex', textDecoration: 'none', marginTop: '.5rem' }}>Contratar {plano.nome}</Link>}
             </div>

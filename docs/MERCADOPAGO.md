@@ -38,7 +38,7 @@ Antes de publicar regras, confirme o projeto Firebase alvo. Como o alias padrão
 
 ## Planos
 
-- Mensal: R$ 11,99 a cada mês.
-- Anual: R$ 119,88 a cada 12 meses.
+- Novas contratações na campanha Black Friday: mensal por R$ 9,90 a cada mês; anual por R$ 94,80 a cada 12 meses (equivalente a R$ 7,90 por mês).
+- Contratos anteriores continuam validados pelos valores originais (R$ 11,99/mês ou R$ 119,88/ano). A alteração do preço no app não muda cobranças recorrentes já criadas no Mercado Pago.
 
 Os valores e recursos centralizados estão em `src/lib/planos.ts`. A landing consulta `GET /api/billing/plans`; não mantenha um segundo catálogo de valores.

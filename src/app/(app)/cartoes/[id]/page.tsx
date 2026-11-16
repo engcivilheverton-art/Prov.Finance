@@ -13,7 +13,7 @@ import { resumoCartao } from '@/lib/cartoes';
 import { editarLancamentoCsv, excluirFatura, FaturaPagaError, PremiumRequiredError, importarItens } from '@/lib/cartoes-db';
 import { useColecao } from '@/lib/colecao';
 import { decodificar, lerCsv, NOMES_BANCO, sugerirMesFatura, totalGastos, type ResultadoCsv } from '@/lib/csv';
-import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
+import { distribuirParcelamentos, redirecionarFaturasPagas } from '@/lib/csv/parcelamentos';
 import { MESES, montarYm, rotuloYm, ymAtual } from '@/lib/datas';
 import { brl } from '@/lib/formato';
 import { chaveBase, SEM_CATEGORIA, type CategoriaComId } from '@/lib/categorias';
@@ -150,11 +150,17 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
   const ym = montarYm(ano, mes);
   const gastos = itensComRegras.filter((i) => !i.programado && !i.ignorado && i.valor > 0);
   let faturasPlanejadas: ReturnType<typeof distribuirParcelamentos> = [];
+  let remanejamentos: ReturnType<typeof redirecionarFaturasPagas>['remanejamentos'] = [];
   let erroDistribuicao = '';
-  try { faturasPlanejadas = distribuirParcelamentos(itensComRegras, ym); }
+  try {
+    const planejadas = distribuirParcelamentos(itensComRegras, ym);
+    const statusPorYm = new Map<string, string | undefined>(faturas.map((fatura) => [fatura.id, fatura.status] as const));
+    const resultado = redirecionarFaturasPagas(planejadas, statusPorYm);
+    faturasPlanejadas = resultado.faturas;
+    remanejamentos = resultado.remanejamentos;
+  }
   catch (error) { erroDistribuicao = error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas deste arquivo.'; }
   const resumoFaturas = faturasPlanejadas.map((fatura) => ({ ym: fatura.ym, quantidade: fatura.itens.length, valor: totalGastos(fatura.itens) }));
-  const faturaPaga = resumoFaturas.find((prevista) => faturas.some((fatura) => fatura.id === prevista.ym && fatura.status === 'Pago'));
 
   async function confirmar() {
     setImportando(true);
@@ -191,10 +197,10 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
       </div>
       {resumoFaturas.length > 0 && <div className="aviso aviso-info">Distribuição prevista por fatura: {resumoFaturas.map((f) => `${rotuloYm(f.ym)} (${f.quantidade} lançamento(s), ${brl(f.valor)})`).join('; ')}. Os valores serão somados ao total de cada fatura.</div>}
       {erroDistribuicao && <div className="aviso aviso-erro" role="alert">{erroDistribuicao}</div>}
-      {faturaPaga && <div className="aviso aviso-erro">A fatura de {rotuloYm(faturaPaga.ym)} já está paga. Desfaça o pagamento para importar lançamentos nela.</div>}
+      {remanejamentos.length > 0 && <div className="aviso aviso-info">Lançamentos previstos para faturas já pagas serão encaminhados para a próxima fatura em aberto: {remanejamentos.map((remanejamento) => `${rotuloYm(remanejamento.deYm)} → ${rotuloYm(remanejamento.paraYm)} (${remanejamento.quantidade} lançamento(s))`).join('; ')}.</div>}
       <div className="acoes" style={{ justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-sec" onClick={() => onFim(null)}>Cancelar</button>
-        <button type="button" className="btn" disabled={importando || !!erroDistribuicao || !!faturaPaga || regrasImportacao.carregando} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
+        <button type="button" className="btn" disabled={importando || !!erroDistribuicao || regrasImportacao.carregando} onClick={() => void confirmar()}>{importando ? 'Importando…' : 'Importar'}</button>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { MercadoPagoTimeoutError } from '@/lib/mercadopago-server';
 import { canUseFeature } from '@/lib/planos';
-import { distribuirParcelamentos } from '@/lib/csv/parcelamentos';
+import { distribuirParcelamentos, redirecionarFaturasPagas, somarMesesFatura } from '@/lib/csv/parcelamentos';
 import { chaveBase } from '@/lib/categorias';
 import { commitFirestoreDocuments, confirmarAcessoPremium, getFirestoreDocument, listFirestoreCollection, verifyFirebaseIdToken } from '@/lib/server-billing';
 
@@ -100,13 +100,35 @@ export async function POST(request: Request) {
     try { faturasPlanejadas = distribuirParcelamentos(itemsWithRules, body.ym); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível distribuir as parcelas.' }, { status: 400 }); }
 
-    const destinos = await etapa('firestore_read_target_invoices', () => Promise.all(faturasPlanejadas.map(async (fatura) => ({
+    const invoicesPorYm = new Map<string, Record<string, unknown> | null>();
+    const lerFatura = async (ym: string) => {
+      if (invoicesPorYm.has(ym)) return invoicesPorYm.get(ym) ?? null;
+      const invoice = await etapa('firestore_read_target_invoice', () => getFirestoreDocument(`${base}/faturas/${ym}`));
+      invoicesPorYm.set(ym, invoice);
+      return invoice;
+    };
+    await Promise.all(faturasPlanejadas.map((fatura) => lerFatura(fatura.ym)));
+    const statusPorYm = () => {
+      const statuses = new Map<string, string | undefined>();
+      for (const [ym, invoice] of invoicesPorYm) statuses.set(ym, typeof invoice?.status === 'string' ? invoice.status : undefined);
+      return statuses;
+    };
+    for (const fatura of faturasPlanejadas) {
+      if (invoicesPorYm.get(fatura.ym)?.status !== 'Pago') continue;
+      let encontrouDestino = false;
+      for (let distancia = 1; distancia <= 240; distancia++) {
+        const candidato = somarMesesFatura(fatura.ym, distancia);
+        const invoice = await lerFatura(candidato);
+        if (invoice?.status !== 'Pago') { encontrouDestino = true; break; }
+      }
+      if (!encontrouDestino) return NextResponse.json({ error: `Não foi possível encontrar uma fatura em aberto depois de ${fatura.ym} para receber os lançamentos.` }, { status: 409 });
+    }
+    const resultadoRedirecionamento = redirecionarFaturasPagas(faturasPlanejadas, statusPorYm());
+    const destinos = await Promise.all(resultadoRedirecionamento.faturas.map(async (fatura) => ({
       ...fatura,
       path: `${base}/faturas/${fatura.ym}`,
-      invoice: await getFirestoreDocument(`${base}/faturas/${fatura.ym}`),
-    }))));
-    const paga = destinos.find((destino) => destino.invoice?.status === 'Pago');
-    if (paga) return NextResponse.json({ error: `A fatura de ${paga.ym} já está paga.` }, { status: 409 });
+      invoice: await lerFatura(fatura.ym),
+    })));
 
     let novos = 0;
     let ignorados = 0;

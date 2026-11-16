@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { PLANOS, planoValido } from '@/lib/planos';
+import { matchesCurrentPlan, PLANOS, planoValido } from '@/lib/planos';
 import { appBaseUrl, getPreapproval, matchesPlan, mercadoPagoAccessToken } from '@/lib/mercadopago-server';
 import {
   finishSubscriptionCheckout,
@@ -46,10 +46,24 @@ export async function POST(request: Request) {
 
     if (current?.preapprovalId && current.status === 'pending' && current.plan === planId && current.checkoutUrl) {
       const remote = await getPreapproval(current.preapprovalId);
-      if (remote.id === current.preapprovalId && remote.external_reference === user.uid && remote.status === 'pending' && matchesPlan(remote, planId) && remote.init_point === current.checkoutUrl) {
+      const pertenceAoUsuario = remote.id === current.preapprovalId && remote.external_reference === user.uid;
+      if (pertenceAoUsuario && remote.status === 'pending' && matchesCurrentPlan(remote, planId) && remote.init_point === current.checkoutUrl) {
         return NextResponse.json({ checkoutUrl: current.checkoutUrl });
       }
-      if (remote.id === current.preapprovalId && remote.external_reference === user.uid) {
+      if (pertenceAoUsuario && remote.status === 'pending' && matchesPlan(remote, planId) && !matchesCurrentPlan(remote, planId)) {
+        const cancelamento = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(current.preapprovalId)}`, {
+          method: 'PUT',
+          headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'canceled' }),
+          cache: 'no-store',
+        });
+        if (!cancelamento.ok) return NextResponse.json({ error: 'Não foi possível atualizar o checkout antigo. Tente novamente em instantes.' }, { status: 502 });
+        const cancelada = await getPreapproval(current.preapprovalId);
+        if (cancelada.id !== current.preapprovalId || cancelada.external_reference !== user.uid || cancelada.status !== 'canceled') {
+          return NextResponse.json({ error: 'O checkout anterior está sendo encerrado. Tente novamente em instantes.' }, { status: 409 });
+        }
+        await writeSubscription(user.uid, { ...current, status: 'canceled', providerVersion: cancelada.version });
+      } else if (pertenceAoUsuario) {
         await writeSubscription(user.uid, { ...current, status: remote.status ?? 'unknown', providerVersion: remote.version });
       }
     }
@@ -59,7 +73,7 @@ export async function POST(request: Request) {
     if (reservation.kind === 'active') return NextResponse.json({ error: 'Sua assinatura Premium já está ativa.' }, { status: 409 });
     if (reservation.kind === 'existing') {
       const remote = await getPreapproval(reservation.preapprovalId);
-      if (remote.id === reservation.preapprovalId && remote.external_reference === user.uid && remote.status === 'pending' && matchesPlan(remote, planId) && remote.init_point === reservation.checkoutUrl) {
+      if (remote.id === reservation.preapprovalId && remote.external_reference === user.uid && remote.status === 'pending' && matchesCurrentPlan(remote, planId) && remote.init_point === reservation.checkoutUrl) {
         return NextResponse.json({ checkoutUrl: reservation.checkoutUrl });
       }
       return NextResponse.json({ error: 'O checkout anterior não está mais pendente. Atualize a página e escolha o plano novamente.' }, { status: 409 });

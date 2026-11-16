@@ -7,14 +7,16 @@ import { hasConfirmedLatestInvoice } from '@/lib/subscription-entitlement';
 
 describe('catálogo de assinaturas', () => {
   it('mantém preço e recorrência definidos no servidor', () => {
-    expect(PLANOS.mensal).toMatchObject({ valor: 11.99, frequencia: 1, frequenciaTipo: 'months' });
-    expect(PLANOS.anual).toMatchObject({ valor: 119.88, frequencia: 12, frequenciaTipo: 'months' });
+    expect(PLANOS.mensal).toMatchObject({ valor: 9.90, frequencia: 1, frequenciaTipo: 'months' });
+    expect(PLANOS.anual).toMatchObject({ valor: 94.80, frequencia: 12, frequenciaTipo: 'months' });
     expect(planoValido('mensal')).toBe(true);
     expect(planoValido('anual')).toBe(true);
     expect(planoValido('gratuito')).toBe(false);
   });
 
   it('só aceita uma recorrência Mercado Pago compatível com o plano', () => {
+    expect(matchesPlan({ auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 9.90, currency_id: 'BRL' } }, 'mensal')).toBe(true);
+    expect(matchesPlan({ auto_recurring: { frequency: 12, frequency_type: 'months', transaction_amount: 94.80, currency_id: 'BRL' } }, 'anual')).toBe(true);
     expect(matchesPlan({ auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 11.99, currency_id: 'BRL' } }, 'mensal')).toBe(true);
     expect(matchesPlan({ auto_recurring: { frequency: 12, frequency_type: 'months', transaction_amount: 119.88, currency_id: 'BRL' } }, 'anual')).toBe(true);
     expect(matchesPlan({ auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 0.01, currency_id: 'BRL' } }, 'mensal')).toBe(false);

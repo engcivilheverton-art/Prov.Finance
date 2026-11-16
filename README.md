@@ -25,8 +25,8 @@ O app fica em `http://localhost:3000`; os emuladores Auth e Firestore usam as po
 Os valores e a lista de recursos têm uma única fonte no backend, em `src/lib/planos.ts`:
 
 - Free: painel básico, rendas, contas fixas, dívidas, cartões, faturas manuais, perfil e configurações.
-- Premium mensal: R$ 11,99/mês.
-- Premium anual: R$ 119,88 a cada 12 meses.
+- Premium mensal (Black Friday): R$ 9,90/mês.
+- Premium anual (Black Friday): equivalente a R$ 7,90/mês, com cobrança de R$ 94,80 a cada 12 meses.
 - O plano Free permite até dois cartões, uma conta fixa, uma dívida e um gráfico escolhido; importação CSV, gráficos adicionais e calendário de gastos são Premium. As criações são limitadas também no servidor. Para mudar os limites, ajuste `FREE_LIMITS` em `src/lib/planos.ts`.
 
 - **Caixinhas** permite que cada pessoa crie e organize suas próprias categorias de orçamento, com percentuais, ícones e cores. O gasto pode ser informado manualmente ou calculado a partir das contas fixas e cartões/dívidas cadastrados. Caixas arquivadas e seus lançamentos são preservados. A configuração antiga é migrada automaticamente por usuário; contas novas começam sem categorias predefinidas.
