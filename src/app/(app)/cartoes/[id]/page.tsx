@@ -275,7 +275,7 @@ export default function CartaoDetalhe() {
             <button type="button" className="btn btn-perigo btn-mini" aria-label={`Excluir fatura de ${rotuloYm(f.id)}`} onClick={() => { if (confirm(`Excluir a fatura de ${rotuloYm(f.id)} e seus lançamentos?`)) void excluirFatura(uid, id, f.id); }}>✕</button>
           </div>
         </div>
-        {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} origem={f.origem} categorias={categoriasCSV.categorias} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
+        {abertas[f.id] && <div style={{ padding: '0 0 1rem' }}><Lancamentos uid={uid} cartaoId={id} ym={f.id} origem={f.origem} categorias={categoriasCSV.categoriasAtivas} premium={assinatura.premium} categoriaDe={categoriasCSV.categoriaDe}
           onDefinirRegra={categoriasCSV.definirRegra} onUpgrade={pedirUpgradeCategorias} /></div>}
       </div>
     );
@@ -318,7 +318,8 @@ export default function CartaoDetalhe() {
       <GerenciadorCategorias aberto={gerenciadorAberto} onFechar={() => setGerenciadorAberto(false)} categorias={categoriasCSV.categorias} regras={categoriasCSV.regras} premium={assinatura.premium}
         onAdicionar={(nome) => comPremiumCategorias(() => categoriasCSV.adicionarCategoria(nome)).then(() => undefined)}
         onSalvarPalavras={(categoria, palavras) => comPremiumCategorias(() => categoriasCSV.salvarPalavras(categoria, palavras)).then(() => undefined)}
-        onRemoverCategoria={(categoriaId) => comPremiumCategorias(() => categoriasCSV.removerCategoria(categoriaId)).then(() => undefined)}
+        onRenomearCategoria={(categoriaId, nome) => comPremiumCategorias(() => categoriasCSV.renomearCategoria(categoriaId, nome)).then(() => undefined)}
+        onArquivarCategoria={(categoriaId, arquivada) => comPremiumCategorias(() => categoriasCSV.arquivarCategoria(categoriaId, arquivada)).then(() => undefined)}
         onDefinirRegra={(chave, categoriaId) => comPremiumCategorias(() => categoriasCSV.definirRegra(chave, categoriaId)).then(() => undefined)}
         onRemoverRegra={(regraId) => comPremiumCategorias(() => categoriasCSV.removerRegra(regraId)).then(() => undefined)} />
 

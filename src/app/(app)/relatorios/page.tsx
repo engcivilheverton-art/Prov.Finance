@@ -13,6 +13,7 @@ import { rotuloCurto, rotuloYm, somarMeses, ymAtual } from '@/lib/datas';
 import { brl } from '@/lib/formato';
 import { carregarPerfil } from '@/lib/perfil';
 import { SEM_CATEGORIA } from '@/lib/categorias';
+import type { ContaBancaria, MovimentacaoConta } from '@/types/contas';
 import { PERFIL_PADRAO, type Cartao, type Com, type ContaFixa, type Divida, type Fatura, type ItemFatura, type Perfil, type Renda } from '@/types/finance';
 
 const CORES_ROSCA = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)'];
@@ -41,6 +42,9 @@ function Relatorio() {
   const dividas = useColecao<Divida>(uid ? ['users', uid, 'dividas'] : null);
   const rendas = useColecao<Renda>(uid ? ['users', uid, 'rendas'] : null);
   const fixas = useColecao<ContaFixa>(uid ? ['users', uid, 'fixas'] : null);
+  const contas = useColecao<ContaBancaria>(uid ? ['users', uid, 'contas'] : null);
+  const caminhosMovimentacoes = uid && !contas.carregando ? contas.itens.map((conta) => ['users', uid, 'contas', conta.id, 'movimentacoes']) : null;
+  const movimentacoesCol = useColecoes<MovimentacaoConta>(caminhosMovimentacoes);
   const caminhosFaturas = uid && !cartoes.carregando ? cartoes.itens.map((c) => ['users', uid, 'cartoes', c.id, 'faturas']) : null;
   const faturasCol = useColecoes<Fatura>(caminhosFaturas);
   const faturasPorCartao = useMemo(() => {
@@ -56,6 +60,10 @@ function Relatorio() {
     const total = totaisDoMes(mes, entrada);
     return { renda: acc.renda + total.renda, cartoes: acc.cartoes + total.cartoes, dividas: acc.dividas + total.dividas, fixas: acc.fixas + total.fixas, gastos: acc.gastos + total.gastos, saldo: acc.saldo + total.saldo };
   }, { renda: 0, cartoes: 0, dividas: 0, fixas: 0, gastos: 0, saldo: 0 }), [meses, entrada]);
+  const gastosContaPorMes = useMemo(() => meses.map((mes) => contas.itens.reduce((sum, conta) => {
+    const rows = movimentacoesCol.dados[chaveDe(['users', uid ?? '', 'contas', conta.id, 'movimentacoes'])] ?? [];
+    return sum + rows.filter((mov) => mov.tipo === 'saida' && !mov.ignorada && mov.data.startsWith(mes)).reduce((subtotal, mov) => subtotal + mov.valor, 0);
+  }, 0)), [meses, contas.itens, movimentacoesCol.dados, uid]);
 
   const caminhosItens = uid && !cartoes.carregando
     ? cartoes.itens.flatMap((c) => [ym, somarMeses(ym, 1)].map((fym) => ['users', uid, 'cartoes', c.id, 'faturas', fym, 'itens']))
@@ -67,10 +75,16 @@ function Relatorio() {
     ymFatura: fym,
     itens: itensCol.dados[chaveDe(['users', uid, 'cartoes', c.id, 'faturas', fym, 'itens'])] ?? [],
   }))) : [], [cartoes.itens, itensCol.dados, uid, ym]);
-  const comprasMes = useMemo(() => comprasDoMes(fontes, ym), [fontes, ym]);
+  const comprasMesCartoes = useMemo(() => comprasDoMes(fontes, ym), [fontes, ym]);
+  const comprasMesContas = useMemo(() => uid ? contas.itens.flatMap((conta) =>
+    (movimentacoesCol.dados[chaveDe(['users', uid, 'contas', conta.id, 'movimentacoes'])] ?? [])
+      .filter((mov) => mov.tipo === 'saida' && !mov.ignorada && mov.data.startsWith(ym) && mov.valor > 0)
+      .map((mov) => ({ id: conta.id + ':' + mov.id, cartaoNome: conta.nome, fonteNome: conta.nome, fonteId: conta.id, categoriaId: mov.categoriaId, dataIso: mov.data, descricao: mov.descricao, valor: mov.valor }))
+  ) : [], [contas.itens, movimentacoesCol.dados, uid, ym]);
+  const comprasMes = useMemo(() => [...comprasMesCartoes, ...comprasMesContas], [comprasMesCartoes, comprasMesContas]);
   const fatias = useMemo(() => gastosPorCategoria(comprasMes, categoriasCSV.categorias, categoriasCSV.regras)
     .map((fatia, i) => ({ ...fatia, cor: fatia.nome === SEM_CATEGORIA ? 'var(--ch-fixas)' : CORES_ROSCA[i % CORES_ROSCA.length] })), [comprasMes, categoriasCSV.categorias, categoriasCSV.regras]);
-  const carregando = cartoes.carregando || dividas.carregando || rendas.carregando || fixas.carregando || faturasCol.carregando || itensCol.carregando || categoriasCSV.carregando;
+  const carregando = cartoes.carregando || dividas.carregando || rendas.carregando || fixas.carregando || contas.carregando || movimentacoesCol.carregando || faturasCol.carregando || itensCol.carregando || categoriasCSV.carregando;
   const inicio = meses[0] ?? ym;
   const fim = meses[meses.length - 1] ?? ym;
 
@@ -137,6 +151,12 @@ function Relatorio() {
           <div className="card-cab"><h2>Gastos por categoria · {rotuloYm(ym)}</h2></div>
           <div className="card-corpo">{fatias.length ? <GraficoRosca titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} /> : <p className="suave">Sem gastos categorizados no mês atual.</p>}</div>
         </div>
+      </div>
+
+      <div className="card relatorio-quebra" style={{ marginBottom: '1rem' }}>
+        <div className="card-cab"><h2>Despesas lançadas em contas bancárias</h2></div>
+        <div className="card-corpo"><GraficoBarras titulo="Despesas registradas nas contas bancárias por mês" rotulos={meses.map(rotuloCurto)} barras={[{ nome: 'Despesas em contas', cor: 'var(--ch-cartoes)', valores: gastosContaPorMes }]} /></div>
+        <p className="suave pequeno" style={{ padding: '0 1rem 1rem' }}>Valores lançados nas contas. O gráfico fica separado da projeção para evitar somar pagamentos de fatura duas vezes.</p>
       </div>
 
       <div className="card relatorio-tabela relatorio-quebra">

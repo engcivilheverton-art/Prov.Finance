@@ -76,8 +76,29 @@ export function useCategorias(uid: string | undefined) {
     const palavras = [...new Set(raw.split(',').map((p) => p.trim()).filter(Boolean))];
     const erroPalavras = validarPalavrasCategoria(palavras);
     if (erroPalavras) throw new Error(erroPalavras);
-    await setDoc(doc(db, `users/${uid}/categorias/${categoria.id}`), { nome: categoria.nome, ordem: categoria.ordem, palavras });
+    await setDoc(doc(db, `users/${uid}/categorias/${categoria.id}`), { nome: categoria.nome, ordem: categoria.ordem, palavras, ...(categoria.arquivada ? { arquivada: true } : {}) });
   }, [uid]);
+
+  const renomearCategoria = useCallback(async (categoriaId: string, nome: string) => {
+    if (!uid) throw new Error('Entre na sua conta para editar categorias.');
+    const categoria = categorias.find((item) => item.id === categoriaId);
+    if (!categoria) throw new Error('Categoria não encontrada.');
+    const erroNome = validarNomeCategoria(nome, categorias, categoriaId);
+    if (erroNome) throw new Error(erroNome);
+    await setDoc(doc(db, `users/${uid}/categorias/${categoriaId}`), {
+      nome: nome.trim().replace(/\s+/g, ' '), palavras: categoria.palavras, ordem: categoria.ordem,
+      ...(categoria.arquivada ? { arquivada: true } : {}),
+    } satisfies CategoriaUsuario);
+  }, [uid, categorias]);
+
+  const arquivarCategoria = useCallback(async (categoriaId: string, arquivada: boolean) => {
+    if (!uid) throw new Error('Entre na sua conta para editar categorias.');
+    const categoria = categorias.find((item) => item.id === categoriaId);
+    if (!categoria) throw new Error('Categoria não encontrada.');
+    await setDoc(doc(db, `users/${uid}/categorias/${categoriaId}`), {
+      nome: categoria.nome, palavras: categoria.palavras, ordem: categoria.ordem, ...(arquivada ? { arquivada: true } : {}),
+    } satisfies CategoriaUsuario);
+  }, [uid, categorias]);
 
   const definirRegra = useCallback(async (descricao: string, categoriaId: string | null) => {
     if (!uid) throw new Error('Entre na sua conta para editar categorias.');
@@ -114,5 +135,6 @@ export function useCategorias(uid: string | undefined) {
 
   const carregando = !!uid && (!pronto || !visivel.semeado && categorias.length === 0);
   const regrasOrdenadas = useMemo(() => [...regras].sort((a, b) => a.chave.localeCompare(b.chave)), [regras]);
-  return { categorias, regras: regrasOrdenadas, carregando, erro, categoriaDe, adicionarCategoria, salvarPalavras, definirRegra, removerRegra, removerCategoria };
+  const categoriasAtivas = useMemo(() => categorias.filter((categoria) => !categoria.arquivada), [categorias]);
+  return { categorias, categoriasAtivas, regras: regrasOrdenadas, carregando, erro, categoriaDe, adicionarCategoria, salvarPalavras, renomearCategoria, arquivarCategoria, definirRegra, removerRegra, removerCategoria };
 }

@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 
 const ITENS: { href: string; rotulo: string; icone: NomeIcone }[] = [
   { href: '/dashboard', rotulo: 'Painel', icone: 'dash' },
+  { href: '/contas', rotulo: 'Contas', icone: 'bank' },
   { href: '/cartoes', rotulo: 'Cartões', icone: 'card' },
   { href: '/dividas', rotulo: 'Dívidas', icone: 'cal' },
   { href: '/rendas', rotulo: 'Rendas', icone: 'swap' },

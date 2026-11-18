@@ -109,7 +109,7 @@ describe('CalendarioGastos', () => {
 
   it('avisa quando não há lançamentos no mês', () => {
     const html = renderToStaticMarkup(<CalendarioGastos ym="2026-10" compras={[]} hojeYm="2026-11" hojeDia={3} />);
-    expect(html).toContain('Nenhum lançamento com data neste mês');
+    expect(html).toContain('Nenhuma despesa com data neste mês');
   });
 
   it('destaca o dia de hoje no mês corrente', () => {

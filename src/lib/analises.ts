@@ -73,8 +73,11 @@ export function faturasEmAberto(
 
 export type Compra = {
   id: string;
-  cartaoId: string;
+  cartaoId?: string;
   cartaoNome: string;
+  fonteId?: string;
+  fonteNome?: string;
+  categoriaId?: string;
   dataIso: string; // AAAA-MM-DD
   descricao: string;
   parcela?: string;
@@ -158,7 +161,7 @@ export type Fatia = { nome: string; valor: number };
 export function gastosPorCategoria(compras: Compra[], categorias: CategoriaComId[], regras: RegraCategoria[], maximo = 8): Fatia[] {
   const soma = new Map<string, number>();
   for (const c of compras) {
-    const cat = categoriaDoItem(c.descricao, categorias, regras);
+    const cat = c.categoriaId ? (categorias.find((item) => item.id === c.categoriaId)?.nome ?? categoriaDoItem(c.descricao, categorias, regras)) : categoriaDoItem(c.descricao, categorias, regras);
     soma.set(cat, (soma.get(cat) ?? 0) + c.valor);
   }
   const semValor = soma.get(SEM_CATEGORIA) ?? 0;

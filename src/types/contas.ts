@@ -1,0 +1,30 @@
+export type TipoContaBancaria = 'corrente' | 'poupanca' | 'digital' | 'dinheiro';
+export type ContaBancaria = {
+  nome: string;
+  instituicao: string;
+  tipo: TipoContaBancaria;
+  saldoInicial: number;
+  dataSaldoInicial: string;
+  cor: string;
+  logo?: string;
+  arquivada: boolean;
+  criadaEm: string;
+};
+export type TipoMovimentacaoConta = 'entrada' | 'saida' | 'transferencia' | 'pagamento_fatura';
+export type MovimentacaoConta = {
+  tipo: TipoMovimentacaoConta;
+  direcao?: 'entrada' | 'saida';
+  valor: number;
+  data: string;
+  descricao: string;
+  categoriaId?: string;
+  observacao?: string;
+  contaDestinoId?: string;
+  transferenciaId?: string;
+  importacaoId?: string;
+  chaveDuplicidade?: string;
+  origem: 'manual' | 'csv' | 'ofx';
+  ignorada?: boolean;
+  cartaoId?: string;
+  ymFatura?: string;
+};

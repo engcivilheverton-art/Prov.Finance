@@ -38,6 +38,12 @@ describe('motor de categorias editáveis', () => {
     expect(categoriaDoItem('SUPERMERCADO CENTRAL', categorias, [{ ...regras[0], categoriaId: 'apagada' }])).toBe(mercado.nome);
   });
 
+  it('não sugere categorias arquivadas para novos lançamentos', () => {
+    const arquivadas = categorias.map((categoria) => ({ ...categoria, arquivada: true }));
+    const regra: RegraCategoria = { id: 'a'.repeat(64), chave: 'CARREFOUR EXPRESS', categoriaId: arquivadas[0].id };
+    expect(categoriaDoItem('CARREFOUR EXPRESS', arquivadas, [regra])).toBe(SEM_CATEGORIA);
+  });
+
   it('rejeita nome duplicado sem diferenciar acento e caixa, e reserva Sem categoria', () => {
     expect(validarNomeCategoria('SAUDE', categorias)).toContain('Já existe');
     expect(validarNomeCategoria('  sem   categoria ', categorias)).toContain('reservado');

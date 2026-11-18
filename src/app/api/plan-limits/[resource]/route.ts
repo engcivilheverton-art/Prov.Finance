@@ -4,7 +4,8 @@ import { confirmarAcessoPremium, createLimitedResource, FreePlanLimitError, veri
 const FIELDS = {
   cards: new Set(['nome', 'banco', 'bandeira', 'diaVencimento', 'limite', 'corBase']),
   debts: new Set(['nome', 'credor', 'categoria', 'parcela', 'inicio', 'diaVencimento', 'parcelas']),
-  bankAccounts: new Set(['nome', 'categoria', 'valor', 'dia']),
+  fixedAccounts: new Set(['nome', 'categoria', 'valor', 'dia']),
+  bankAccounts: new Set(['nome', 'instituicao', 'tipo', 'saldoInicial', 'dataSaldoInicial', 'cor', 'logo', 'arquivada', 'criadaEm']),
 } as const;
 
 function validFields(resource: keyof typeof FIELDS, value: unknown): value is Record<string, unknown> {

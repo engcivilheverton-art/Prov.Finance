@@ -78,12 +78,28 @@ function CampoPalavras({ categoria, onSalvar, disabled }: { categoria: Categoria
 
 const LIMITES_UI = { palavra: 40, palavras: 100 };
 
+function CampoNomeCategoria({ categoria, disabled, onSalvar }: { categoria: CategoriaComId; disabled: boolean; onSalvar: (nome: string) => Promise<void> }) {
+  const [nome, setNome] = useState(categoria.nome);
+  const [salvando, setSalvando] = useState(false);
+  async function salvar() {
+    setSalvando(true);
+    try { await onSalvar(nome); }
+    finally { setSalvando(false); }
+  }
+  return <div className="categoria-editor-palavras">
+    <label className="sr-only" htmlFor={`nome-categoria-${categoria.id}`}>Nome da categoria</label>
+    <input id={`nome-categoria-${categoria.id}`} value={nome} disabled={disabled || salvando} maxLength={30} onChange={(event) => setNome(event.target.value)} />
+    <button type="button" className="btn btn-sec btn-mini" disabled={disabled || salvando || nome.trim() === categoria.nome} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar nome'}</button>
+  </div>;
+}
+
 export function GerenciadorCategorias({
-  aberto, onFechar, categorias, regras, premium, onAdicionar, onSalvarPalavras, onRemoverCategoria, onDefinirRegra, onRemoverRegra,
+  aberto, onFechar, categorias, regras, premium, onAdicionar, onSalvarPalavras, onRenomearCategoria, onArquivarCategoria, onDefinirRegra, onRemoverRegra,
 }: {
   aberto: boolean; onFechar: () => void; categorias: CategoriaComId[]; regras: RegraCategoria[]; premium: boolean;
   onAdicionar: (nome: string) => Promise<void>; onSalvarPalavras: (categoria: CategoriaComId, palavras: string) => Promise<void>;
-  onRemoverCategoria: (id: string) => Promise<void>; onDefinirRegra: (chave: string, categoriaId: string | null) => Promise<void>; onRemoverRegra: (id: string) => Promise<void>;
+  onRenomearCategoria: (id: string, nome: string) => Promise<void>; onArquivarCategoria: (id: string, arquivada: boolean) => Promise<void>;
+  onDefinirRegra: (chave: string, categoriaId: string | null) => Promise<void>; onRemoverRegra: (id: string) => Promise<void>;
 }) {
   const [novoNome, setNovoNome] = useState('');
   const [erro, setErro] = useState('');
@@ -95,13 +111,12 @@ export function GerenciadorCategorias({
     try { await onAdicionar(novoNome); setNovoNome(''); }
     catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível adicionar a categoria.'); }
   }
-  async function removerCategoria(categoria: CategoriaComId) {
-    const quantidade = contagem[categoria.id] ?? 0;
-    const complemento = quantidade ? `\n\n${quantidade} regra(s) de estabelecimento também será(ão) removida(s). Os lançamentos voltam a “Sem categoria”.` : '\n\nOs lançamentos voltarão a “Sem categoria”.';
-    if (!window.confirm(`Remover a categoria “${categoria.nome}”?${complemento}`)) return;
+  async function arquivarCategoria(categoria: CategoriaComId) {
+    const arquivar = !categoria.arquivada;
+    if (!window.confirm(arquivar ? `Arquivar “${categoria.nome}”? Os lançamentos antigos manterão esta categoria, mas ela deixará de aparecer para novas classificações.` : `Restaurar “${categoria.nome}” para novas classificações?`)) return;
     setSalvando(true); setErro('');
-    try { await onRemoverCategoria(categoria.id); }
-    catch { setErro('Não foi possível remover a categoria. Tente novamente.'); }
+    try { await onArquivarCategoria(categoria.id, arquivar); }
+    catch { setErro('Não foi possível atualizar a categoria. Tente novamente.'); }
     finally { setSalvando(false); }
   }
   async function mudarRegra(chave: string, categoriaId: string | null) {
@@ -115,10 +130,11 @@ export function GerenciadorCategorias({
       <p className="suave pequeno">As palavras-chave classificam os lançamentos do CSV sem diferenciar acentos ou maiúsculas. Separe as palavras por vírgula. As regras de estabelecimento têm prioridade.</p>
       {!premium && <div className="aviso aviso-info">A edição de categorias é exclusiva do Premium. <PremiumBadge /></div>}
       {categorias.map((categoria) => <section className="gerenciador-categoria" key={`${categoria.id}:${categoria.palavras.join('\u001f')}`}>
-        <div className="gerenciador-categoria-cab"><strong>{categoria.nome}</strong><span className="suave pequeno">{contagem[categoria.id] ?? 0} regra(s)</span>
-          <button type="button" className="btn btn-perigo btn-mini" disabled={!premium || salvando} onClick={() => void removerCategoria(categoria)}>Remover</button>
+        <div className="gerenciador-categoria-cab"><strong>{categoria.nome}{categoria.arquivada ? ' · Arquivada' : ''}</strong><span className="suave pequeno">{contagem[categoria.id] ?? 0} regra(s)</span>
+          <button type="button" className="btn btn-sec btn-mini" disabled={!premium || salvando} onClick={() => void arquivarCategoria(categoria)}>{categoria.arquivada ? 'Restaurar' : 'Arquivar'}</button>
         </div>
-        <CampoPalavras categoria={categoria} disabled={!premium || salvando} onSalvar={(valor) => onSalvarPalavras(categoria, valor)} />
+        <CampoNomeCategoria categoria={categoria} disabled={!premium || salvando || categoria.arquivada === true} onSalvar={(nome) => onRenomearCategoria(categoria.id, nome)} />
+        <CampoPalavras categoria={categoria} disabled={!premium || salvando || categoria.arquivada === true} onSalvar={(valor) => onSalvarPalavras(categoria, valor)} />
       </section>)}
       <div className="acoes gerenciador-adicionar">
         <label className="sr-only" htmlFor="nova-categoria">Nova categoria</label>
@@ -129,7 +145,7 @@ export function GerenciadorCategorias({
       {!regras.length ? <p className="suave pequeno">Nenhuma regra ainda. Ao classificar um lançamento, a regra aparece aqui.</p> : regras.map((regra) => <div className="gerenciador-regra" key={regra.id}>
         <span>{regra.chave}</span>
         <select aria-label={`Categoria para ${regra.chave}`} value={regra.categoriaId} disabled={!premium || salvando} onChange={(e) => void mudarRegra(regra.chave, e.target.value || null)}>
-          <option value="">Sem categoria</option>{categorias.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nome}</option>)}
+          <option value="">Sem categoria</option>{categorias.filter((categoria) => !categoria.arquivada).map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nome}</option>)}
         </select>
         <button type="button" className="btn btn-perigo btn-mini" aria-label={`Remover regra de ${regra.chave}`} disabled={!premium || salvando} onClick={() => void onRemoverRegra(regra.id).catch(() => setErro('Não foi possível remover a regra.'))}>Remover</button>
       </div>)}

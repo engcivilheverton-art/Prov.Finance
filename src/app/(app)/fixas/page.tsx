@@ -60,7 +60,7 @@ export default function FixasPage() {
   const [ym, setYm] = useState(ymAtual());
   const [edicao, setEdicao] = useState<Com<ContaFixa> | 'nova' | null>(null);
   const [upgrade, setUpgrade] = useState(false);
-  const podeAdicionar = limites.canAdd('bankAccounts', contas.itens.length);
+  const podeAdicionar = limites.canAdd('fixedAccounts', contas.itens.length);
 
   const pagas = pagamentos.itens.find((p) => p.id === ym)?.pagas ?? {};
   const total = arredondar(contas.itens.reduce((a, c) => a + c.valor, 0));
@@ -125,7 +125,7 @@ export default function FixasPage() {
           onCancelar={() => setEdicao(null)}
           onSalvar={async (dados) => {
             if (edicao && edicao !== 'nova') await contas.salvar(edicao.id, dados);
-            else await limites.create('bankAccounts', dados);
+            else await limites.create('fixedAccounts', dados);
             setEdicao(null);
           }}
         />

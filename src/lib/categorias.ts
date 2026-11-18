@@ -1,4 +1,4 @@
-export type CategoriaUsuario = { nome: string; palavras: string[]; ordem: number };
+export type CategoriaUsuario = { nome: string; palavras: string[]; ordem: number; arquivada?: boolean };
 export type CategoriaComId = CategoriaUsuario & { id: string };
 export type RegraCategoria = { id: string; chave: string; categoriaId: string };
 
@@ -43,13 +43,14 @@ export function palavraCasa(descricaoNormalizada: string, palavra: string): bool
 }
 
 export function categoriaDoItem(descricao: string, categorias: CategoriaComId[], regras: RegraCategoria[]): string {
+  const ativas = categorias.filter((categoria) => !categoria.arquivada);
   const chave = chaveBase(descricao);
   const regra = regras.find((item) => item.chave === chave);
-  if (regra && categorias.some((categoria) => categoria.id === regra.categoriaId)) {
-    return categorias.find((categoria) => categoria.id === regra.categoriaId)!.nome;
+  if (regra && ativas.some((categoria) => categoria.id === regra.categoriaId)) {
+    return ativas.find((categoria) => categoria.id === regra.categoriaId)!.nome;
   }
   const alvo = normalizar(descricao);
-  const ordem = [...categorias].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
+  const ordem = [...ativas].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
   return ordem.find((categoria) => categoria.palavras.some((palavra) => palavraCasa(alvo, palavra)))?.nome ?? SEM_CATEGORIA;
 }
 
@@ -64,12 +65,12 @@ export async function idRegraCategoria(chave: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function validarNomeCategoria(nome: string, categorias: CategoriaComId[]): string | null {
+export function validarNomeCategoria(nome: string, categorias: CategoriaComId[], ignorarId?: string): string | null {
   const limpo = nome.trim().replace(/\s+/g, ' ');
   if (!limpo) return 'Informe o nome da categoria.';
   if (limpo.length > LIMITES_CATEGORIAS.nome) return `O nome pode ter até ${LIMITES_CATEGORIAS.nome} caracteres.`;
   if (normalizar(limpo) === normalizar(SEM_CATEGORIA)) return `“${SEM_CATEGORIA}” é reservado.`;
-  if (categorias.some((categoria) => normalizar(categoria.nome) === normalizar(limpo))) return 'Já existe uma categoria com esse nome.';
+  if (categorias.some((categoria) => categoria.id !== ignorarId && normalizar(categoria.nome) === normalizar(limpo))) return 'Já existe uma categoria com esse nome.';
   return null;
 }
 

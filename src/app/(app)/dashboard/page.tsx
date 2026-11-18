@@ -18,6 +18,7 @@ import { arredondar, brl } from '@/lib/formato';
 import { carregarPerfil } from '@/lib/perfil';
 import { usePlanLimits } from '@/lib/use-plan-limits';
 import { useCategorias } from '@/lib/use-categorias';
+import type { ContaBancaria, MovimentacaoConta } from '@/types/contas';
 import { SEM_CATEGORIA } from '@/lib/categorias';
 import {
   PERFIL_PADRAO, type Cartao, type Com, type ContaFixa, type Divida, type Fatura, type ItemFatura, type Perfil, type Renda,
@@ -108,6 +109,9 @@ export default function DashboardPage() {
   const dividas = useColecao<Divida>(uid ? ['users', uid, 'dividas'] : null);
   const rendas = useColecao<Renda>(uid ? ['users', uid, 'rendas'] : null);
   const fixas = useColecao<ContaFixa>(uid ? ['users', uid, 'fixas'] : null);
+  const contas = useColecao<ContaBancaria>(uid ? ['users', uid, 'contas'] : null);
+  const caminhosMovimentacoes = uid && !contas.carregando ? contas.itens.map((conta) => ['users', uid, 'contas', conta.id, 'movimentacoes']) : null;
+  const movimentacoesCol = useColecoes<MovimentacaoConta>(caminhosMovimentacoes);
 
   const caminhosFaturas = uid && !cartoes.carregando ? cartoes.itens.map((c) => ['users', uid, 'cartoes', c.id, 'faturas']) : null;
   const faturasCol = useColecoes<Fatura>(caminhosFaturas);
@@ -117,8 +121,8 @@ export default function DashboardPage() {
     return out;
   }, [cartoes.itens, faturasCol.dados, uid]);
 
-  const carregando = cartoes.carregando || dividas.carregando || rendas.carregando || fixas.carregando || faturasCol.carregando;
-  const erro = cartoes.erro ?? dividas.erro ?? rendas.erro ?? fixas.erro ?? faturasCol.erro;
+  const carregando = cartoes.carregando || dividas.carregando || rendas.carregando || fixas.carregando || contas.carregando || faturasCol.carregando;
+  const erro = cartoes.erro ?? dividas.erro ?? rendas.erro ?? fixas.erro ?? contas.erro ?? faturasCol.erro ?? movimentacoesCol.erro;
 
   const periodo = perfil ?? PERFIL_PADRAO;
   const meses = useMemo(() => mesesDoPeriodo(periodo), [periodo]);
@@ -147,8 +151,14 @@ export default function DashboardPage() {
     [cartoes.itens, itensCol.dados, uid, ym],
   );
   const comprasMes = useMemo(() => comprasDoMes(fontes, ym), [fontes, ym]);
-  const filtroValido = filtroCartao === 'todos' || cartoes.itens.some((c) => c.id === filtroCartao) ? filtroCartao : 'todos';
-  const comprasRosca = filtroValido === 'todos' ? comprasMes : comprasMes.filter((c) => c.cartaoId === filtroValido);
+  const comprasContas = useMemo(() => uid ? contas.itens.flatMap((conta) =>
+    (movimentacoesCol.dados[chaveDe(['users', uid, 'contas', conta.id, 'movimentacoes'])] ?? [])
+      .filter((mov) => mov.tipo === 'saida' && !mov.ignorada && mov.data.startsWith(ym) && mov.valor > 0)
+      .map((mov) => ({ id: conta.id + ':' + mov.id, cartaoNome: conta.nome, fonteNome: conta.nome, fonteId: conta.id, categoriaId: mov.categoriaId, dataIso: mov.data, descricao: mov.descricao, valor: mov.valor }))
+  ) : [], [contas.itens, movimentacoesCol.dados, uid, ym]);
+  const comprasTodas = useMemo(() => [...comprasMes, ...comprasContas], [comprasMes, comprasContas]);
+  const filtroValido = filtroCartao === 'todos' || cartoes.itens.some((c) => c.id === filtroCartao) || contas.itens.some((c) => c.id === filtroCartao) ? filtroCartao : 'todos';
+  const comprasRosca = filtroValido === 'todos' ? comprasTodas : comprasTodas.filter((c) => c.fonteId === filtroValido);
   const fatias = gastosPorCategoria(comprasRosca, categoriasCSV.categorias, categoriasCSV.regras)
     .map((f, i) => ({ ...f, cor: f.nome === SEM_CATEGORIA ? 'var(--ch-fixas)' : CORES_ROSCA[i % CORES_ROSCA.length] }));
 
@@ -251,10 +261,11 @@ export default function DashboardPage() {
                 {graficoFree === 'income' && <GraficoBarras titulo="Renda por mês" rotulos={rotulos} barras={[{ nome: 'Renda', cor: 'var(--ch-renda)', valores: serie.renda }]} />}
                 {graficoFree === 'balance' && <GraficoBarras titulo="Saldo mensal projetado: renda informada menos despesas cadastradas" rotulos={rotulos} barras={[{ nome: 'Saldo projetado', cor: 'var(--ch-renda)', valores: serie.balanco }]} />}
                 {graficoFree === 'categories' && <>
-                  <label className="campo" style={{ maxWidth: 280, marginBottom: '1rem' }}><span>Cartão</span>
+                  <label className="campo" style={{ maxWidth: 280, marginBottom: '1rem' }}><span>Origem</span>
                     <select className="filtro" value={filtroValido} onChange={(e) => setFiltroCartao(e.target.value)}>
-                      <option value="todos">Todos os cartões</option>
+                      <option value="todos">Todas as origens</option>
                       {cartoes.itens.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      {contas.itens.map((c) => <option key={'conta-' + c.id} value={c.id}>{c.nome} · {c.instituicao}</option>)}
                     </select>
                   </label>
                   {categoriasCSV.carregando || itensCol.carregando ? <p className="suave">Carregando…</p> : <GraficoRosca key={`categorias-${ym}-${filtroValido}`} titulo={`Gastos por categoria em ${rotuloYm(ym)}`} fatias={fatias} />}
@@ -301,10 +312,11 @@ export default function DashboardPage() {
               <div className="card-cab">
                 <h2>Gastos por categoria · {rotuloCurto(ym)}</h2>
                 <label>
-                  <span className="sr-only">Cartão</span>
+                  <span className="sr-only">Origem</span>
                   <select className="filtro" value={filtroValido} onChange={(e) => setFiltroCartao(e.target.value)}>
-                    <option value="todos">Todos os cartões</option>
+                    <option value="todos">Todas as origens</option>
                     {cartoes.itens.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    {contas.itens.map((c) => <option key={'conta-' + c.id} value={c.id}>{c.nome} · {c.instituicao}</option>)}
                   </select>
                 </label>
               </div>
@@ -319,9 +331,9 @@ export default function DashboardPage() {
           <div className="card">
             <div className="card-cab"><h2>Calendário de gastos · {rotuloYm(ym)}</h2></div>
             <div className="card-corpo">
-              {itensCol.carregando
+                {itensCol.carregando || movimentacoesCol.carregando
                 ? <p className="suave">Carregando lançamentos…</p>
-                : <CalendarioGastos key={ym} ym={ym} compras={comprasMes} hojeYm={ymAtual(hoje)} hojeDia={hoje.getDate()} />}
+                  : <CalendarioGastos key={ym} ym={ym} compras={comprasTodas} hojeYm={ymAtual(hoje)} hojeDia={hoje.getDate()} />}
             </div>
           </div>
         </div>

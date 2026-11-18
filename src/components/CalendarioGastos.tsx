@@ -61,7 +61,7 @@ export function CalendarioGastos({ ym, compras, hojeYm, hojeDia }: Props) {
               <div key={c.id} className="linha">
                 <div className="grow">
                   <div className="titulo">{c.descricao}{c.parcela && <span className="selo selo-azul" style={{ marginLeft: '.4rem' }}>{c.parcela}</span>}</div>
-                  <div className="pequeno suave">{c.cartaoNome}</div>
+                  <div className="pequeno suave">{c.fonteNome ?? c.cartaoNome}</div>
                 </div>
                 <span className="num">{brl(c.valor)}</span>
               </div>
@@ -70,7 +70,7 @@ export function CalendarioGastos({ ym, compras, hojeYm, hojeDia }: Props) {
         </div>
       )}
       {sel && !detalhe && <p className="suave" style={{ marginTop: '1rem' }} role="status">Sem gastos em {sel} de {nomeMes}.</p>}
-      {resumo.diasComGasto === 0 && <p className="aviso aviso-info" style={{ marginTop: '1rem' }}>Nenhum lançamento com data neste mês. O calendário usa os lançamentos importados por CSV.</p>}
+      {resumo.diasComGasto === 0 && <p className="aviso aviso-info" style={{ marginTop: '1rem' }}>Nenhuma despesa com data neste mês. O calendário usa compras dos cartões e despesas das contas bancárias.</p>}
     </div>
   );
 }

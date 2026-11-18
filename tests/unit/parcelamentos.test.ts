@@ -35,8 +35,9 @@ describe('parcelamentos futuros de CSV do Bradesco', () => {
     const resultado = lerCsv(csv);
     expect(resultado.banco).toBe('bradesco');
     expect(resultado.itens).toContainEqual(expect.objectContaining({
-      descricao: 'RECARGAPAY*CLIENTE', parcela: '6/12', valor: 32.8, programado: true,
+      descricao: 'RECARGAPAY*CLIENTE', parcela: '6/12', valor: 32.8,
     }));
+    expect(resultado.itens.find((item) => item.descricao === 'RECARGAPAY*CLIENTE')?.programado).toBeUndefined();
 
     const faturas = distribuirParcelamentos(resultado.itens, '2026-11');
     const futuras = faturas.filter((fatura) => fatura.ym !== '2026-11');

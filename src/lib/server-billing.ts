@@ -79,7 +79,8 @@ export class FreePlanLimitError extends Error {
 const LIMITED_COLLECTIONS = {
   cards: { collection: 'cartoes' },
   debts: { collection: 'dividas' },
-  bankAccounts: { collection: 'fixas' },
+  fixedAccounts: { collection: 'fixas' },
+  bankAccounts: { collection: 'contas' },
 } as const;
 
 /** Count existing records and serialize Free creates through a per-user lock document. */
@@ -97,7 +98,10 @@ export async function createLimitedResource(uid: string, resource: keyof typeof 
   const lock = db.doc(`users/${uid}/planLocks/${resource}`);
   await db.runTransaction(async (transaction) => {
     const [lockSnapshot, records] = await Promise.all([transaction.get(lock), transaction.get(collection)]);
-    if (records.size >= limit) throw new FreePlanLimitError();
+    const activeCount = resource === 'bankAccounts'
+      ? records.docs.filter((record) => record.get('arquivada') !== true).length
+      : records.size;
+    if (activeCount >= limit) throw new FreePlanLimitError();
     transaction.set(lock, { revision: Number(lockSnapshot.get('revision') ?? 0) + 1, updatedAt: new Date().toISOString() });
     transaction.create(ref, fields);
   });

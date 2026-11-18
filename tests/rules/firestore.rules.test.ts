@@ -62,6 +62,48 @@ describe('isolamento por usuário', () => {
   });
 });
 
+describe('contas bancárias e movimentações', () => {
+  const account = {
+    nome: 'Conta principal', instituicao: 'Inter', tipo: 'digital', saldoInicial: 500,
+    dataSaldoInicial: '2026-11-01', cor: '#2563EB', arquivada: false, criadaEm: '2026-11-17T12:00:00.000Z',
+  };
+  const movement = {
+    tipo: 'saida', valor: 20, data: '2026-11-05', descricao: 'Mercado', origem: 'manual',
+  };
+
+  it('bloqueia criação direta da conta e permite ao dono alterar dados válidos', async () => {
+    const db = env.authenticatedContext('ana').firestore();
+    await assertFails(setDoc(doc(db, 'users/ana/contas/c1'), account));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users/ana/contas/c1'), account);
+    });
+    await assertSucceeds(setDoc(doc(db, 'users/ana/contas/c1'), { ...account, nome: 'Conta atualizada' }));
+    await assertFails(setDoc(doc(db, 'users/ana/contas/c2'), { ...account, admin: true }));
+  });
+
+  it('isola lançamentos e permite ao proprietário criar, editar e apagar', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users/ana/contas/c1'), account);
+    });
+    const ana = env.authenticatedContext('ana').firestore();
+    const ref = doc(ana, 'users/ana/contas/c1/movimentacoes/m1');
+    await assertSucceeds(setDoc(ref, movement));
+    await assertSucceeds(setDoc(ref, { ...movement, valor: 25 }));
+    const bia = env.authenticatedContext('bia').firestore();
+    await assertFails(setDoc(doc(bia, 'users/ana/contas/c1/movimentacoes/m2'), movement));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it('rejeita movimentações com valor inválido ou campos extras', async () => {
+    const db = env.authenticatedContext('ana').firestore();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users/ana/contas/c1'), account);
+    });
+    await assertFails(setDoc(doc(db, 'users/ana/contas/c1/movimentacoes/bad1'), { ...movement, valor: -1 }));
+    await assertFails(setDoc(doc(db, 'users/ana/contas/c1/movimentacoes/bad2'), { ...movement, cpf: '123' }));
+  });
+});
+
 describe('validação do perfil', () => {
   const ref = (uid: string) => doc(env.authenticatedContext(uid).firestore(), `users/${uid}/perfil/dados`);
 
