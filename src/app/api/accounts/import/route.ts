@@ -5,7 +5,7 @@ import { canUseFeature } from '@/lib/planos';
 type ItemImportado = {
   id: string; chaveDuplicidade: string; data: string; descricao: string; valor: number;
   tipo: 'entrada' | 'saida' | 'transferencia' | 'pagamento_fatura';
-  direcao?: 'entrada' | 'saida'; categoriaId?: string; ignorada?: boolean;
+  direcao?: 'entrada' | 'saida'; categoriaId?: string; ignorada?: boolean; cartaoId?: string; ymFatura?: string;
 };
 const TIPOS = new Set(['entrada', 'saida', 'transferencia', 'pagamento_fatura']);
 
@@ -46,6 +46,8 @@ export async function POST(request: Request) {
         || typeof row.tipo !== 'string' || !TIPOS.has(row.tipo)
         || (row.direcao !== undefined && row.direcao !== 'entrada' && row.direcao !== 'saida')
         || (row.categoriaId !== undefined && (typeof row.categoriaId !== 'string' || row.categoriaId.length > 64))
+        || (row.cartaoId !== undefined && (typeof row.cartaoId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(row.cartaoId)))
+        || (row.ymFatura !== undefined && (typeof row.ymFatura !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(row.ymFatura)))
         || (row.ignorada !== undefined && typeof row.ignorada !== 'boolean')) {
         return NextResponse.json({ code: 'INVALID_ROW', error: 'Uma ou mais linhas têm dados inválidos.' }, { status: 400 });
       }
@@ -55,7 +57,13 @@ export async function POST(request: Request) {
         ...(row.direcao ? { direcao: row.direcao as 'entrada' | 'saida' } : {}),
         ...(row.categoriaId ? { categoriaId: row.categoriaId as string } : {}),
         ...(row.ignorada ? { ignorada: true } : {}),
+        ...(row.tipo === 'pagamento_fatura' && row.cartaoId ? { cartaoId: row.cartaoId as string } : {}),
+        ...(row.tipo === 'pagamento_fatura' && row.ymFatura ? { ymFatura: row.ymFatura as string } : {}),
       });
+    }
+    const linkedCardIds = [...new Set(items.flatMap((item) => item.cartaoId ? [item.cartaoId] : []))];
+    for (const cardId of linkedCardIds) {
+      if (!await getFirestoreDocument(`users/${user.uid}/cartoes/${cardId}`)) return NextResponse.json({ code: 'CARD_NOT_FOUND', error: 'O cartão vinculado ao pagamento não foi encontrado.' }, { status: 400 });
     }
     const movementPath = accountPath + '/movimentacoes';
     const existing = await listFirestoreCollection(movementPath);

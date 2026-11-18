@@ -166,11 +166,25 @@ export default function ContasPage() {
   const { user } = useAuth(); const uid = user?.uid; const limits = usePlanLimits();
   const categorias = useCategorias(uid);
   const accounts = useColecao<ContaBancaria>(uid ? ['users', uid, 'contas'] : null);
+  const cards = useColecao<Cartao>(uid ? ['users', uid, 'cartoes'] : null);
   const accountMovementPaths = uid && !accounts.carregando ? accounts.itens.map((account) => ['users', uid, 'contas', account.id, 'movimentacoes']) : null;
   const allMovements = useColecoes<MovimentacaoConta>(accountMovementPaths);
   const active = accounts.itens.filter((account) => !account.arquivada);
   const [selectedId, setSelectedId] = useState('');
   const selected = accounts.itens.find((account) => account.id === selectedId) ?? active[0];
+  const transferCandidates = active.filter((account) => account.id !== selected?.id).flatMap((account) => {
+    const path = ['users', uid ?? '', 'contas', account.id, 'movimentacoes'];
+    return (allMovements.dados[chaveDe(path)] ?? []).filter((movement) => movement.tipo === 'transferencia' && !movement.ignorada && !movement.transferenciaId).map((movement) => ({
+      id: movement.id, accountId: account.id, accountName: account.nome, date: movement.data, value: movement.valor, direction: movement.direcao,
+    }));
+  });
+  const sugerirParTransferencia = (row: LinhaExtrato) => {
+    const direction = row.direcao ?? (row.valor < 0 ? 'saida' : 'entrada');
+    const dateNumber = new Date(row.data + 'T00:00:00Z').getTime();
+    return transferCandidates
+      .filter((candidate) => candidate.direction && candidate.direction !== direction && Math.abs(candidate.value - Math.abs(row.valor)) < 0.01 && Math.abs(new Date(candidate.date + 'T00:00:00Z').getTime() - dateNumber) <= 2 * 86_400_000)
+      .sort((a, b) => Math.abs(new Date(a.date + 'T00:00:00Z').getTime() - dateNumber) - Math.abs(new Date(b.date + 'T00:00:00Z').getTime() - dateNumber))[0];
+  };
   const movements = useColecao<MovimentacaoConta>(uid && selected ? ['users', uid, 'contas', selected.id, 'movimentacoes'] : null);
   const [edit, setEdit] = useState<Com<ContaBancaria> | 'new' | null>(null);
   const [upgrade, setUpgrade] = useState(false); const canAdd = limits.canAdd('bankAccounts', active.length);
@@ -178,6 +192,9 @@ export default function ContasPage() {
   const [gerenciadorCategorias, setGerenciadorCategorias] = useState(false);
   const [showImport, setShowImport] = useState(false); const [rows, setRows] = useState<LinhaExtrato[]>([]); const [rowTypes, setRowTypes] = useState<TipoMovimentacaoConta[]>([]);
   const [rowCategories, setRowCategories] = useState<(string | undefined)[]>([]);
+  const [rowCards, setRowCards] = useState<(string | undefined)[]>([]);
+  const [rowInvoiceMonths, setRowInvoiceMonths] = useState<string[]>([]);
+  const [rowTransferMatches, setRowTransferMatches] = useState<Record<number, string>>({});
   const [rowIgnored, setRowIgnored] = useState<boolean[]>([]);
   const [rowDuplicate, setRowDuplicate] = useState<boolean[]>([]);
   const [saveRulesForFuture, setSaveRulesForFuture] = useState(false);
@@ -246,13 +263,14 @@ export default function ContasPage() {
         seenKeys.add(key);
         return duplicate;
       });
-      setRows(parsed.linhas); setRowTypes(parsed.linhas.map((line) => line.tipo)); setRowCategories(parsed.linhas.map((line) => line.tipo === 'saida' ? categorias.categoriasAtivas.find((category) => category.nome === categorias.categoriaDe(line.descricao))?.id : undefined)); setRowDuplicate(duplicates); setRowIgnored(duplicates); setSaveRulesForFuture(false); setParseErrors(parsed.erros); setFormat(parsed.formato); setShowImport(true);
+      setRows(parsed.linhas); setRowTypes(parsed.linhas.map((line) => line.tipo)); setRowCategories(parsed.linhas.map((line) => line.tipo === 'saida' ? categorias.categoriasAtivas.find((category) => category.nome === categorias.categoriaDe(line.descricao))?.id : undefined)); setRowCards(parsed.linhas.map(() => undefined)); setRowInvoiceMonths(parsed.linhas.map((line) => line.data.slice(0, 7))); setRowTransferMatches({}); setRowDuplicate(duplicates); setRowIgnored(duplicates); setSaveRulesForFuture(false); setParseErrors(parsed.erros); setFormat(parsed.formato); setShowImport(true);
     } catch { setImportError('Não foi possível ler este arquivo.'); }
   }
   function applyCsvMapping() {
     const parsed = parseCsvExtrato(rawCsv, csvMapping);
     setRows(parsed.linhas); setRowTypes(parsed.linhas.map((line) => line.tipo));
     setRowCategories(parsed.linhas.map((line) => line.tipo === 'saida' ? categorias.categoriasAtivas.find((category) => category.nome === categorias.categoriaDe(line.descricao))?.id : undefined));
+    setRowCards(parsed.linhas.map(() => undefined)); setRowInvoiceMonths(parsed.linhas.map((line) => line.data.slice(0, 7))); setRowTransferMatches({});
     const seenKeys = new Set<string>();
     const occurrences = new Map<string, number>();
     const duplicates = parsed.linhas.map((line) => {
@@ -302,6 +320,8 @@ export default function ContasPage() {
             ...(rowIgnored[index] ? { ignorada: true } : {}),
             ...(type === 'transferencia' ? { direcao: row.direcao ?? 'saida' } : {}),
             ...(type === 'saida' && rowCategories[index] ? { categoriaId: rowCategories[index] } : {}),
+            ...(type === 'pagamento_fatura' && rowCards[index] ? { cartaoId: rowCards[index] } : {}),
+            ...(type === 'pagamento_fatura' && rowInvoiceMonths[index] ? { ymFatura: rowInvoiceMonths[index] } : {}),
             })),
           }),
         });
@@ -311,6 +331,32 @@ export default function ContasPage() {
         imported += result.importados ?? 0;
         ignored += result.ignorados ?? 0;
       }
+      let paired = 0; let pairWarning = '';
+      const pairUpdates: { key: string; candidate: (typeof transferCandidates)[number]; transferId: string }[] = [];
+      const usedCandidates = new Set<string>();
+      for (const item of prepared) {
+        if (item.type !== 'transferencia' || rowIgnored[item.index]) continue;
+        const suggested = sugerirParTransferencia(item.row);
+        const selectedMatch = rowTransferMatches[item.index] ?? (suggested ? `${suggested.accountId}/${suggested.id}` : '__none__');
+        if (selectedMatch === '__none__') continue;
+        const candidate = transferCandidates.find((match) => `${match.accountId}/${match.id}` === selectedMatch);
+        if (!candidate || usedCandidates.has(selectedMatch)) continue;
+        usedCandidates.add(selectedMatch);
+        pairUpdates.push({ key: item.key, candidate, transferId: crypto.randomUUID() });
+      }
+      if (pairUpdates.length) {
+        try {
+          for (let offset = 0; offset < pairUpdates.length; offset += 200) {
+            const pairBatch = writeBatch(db);
+            for (const pair of pairUpdates.slice(offset, offset + 200)) {
+              pairBatch.update(doc(db, 'users', uid, 'contas', selected.id, 'movimentacoes', pair.key), { transferenciaId: pair.transferId, contaDestinoId: pair.candidate.accountId });
+              pairBatch.update(doc(db, 'users', uid, 'contas', pair.candidate.accountId, 'movimentacoes', pair.candidate.id), { transferenciaId: pair.transferId, contaDestinoId: selected.id });
+            }
+            await pairBatch.commit(); paired += pairUpdates.slice(offset, offset + 200).length;
+          }
+        }
+        catch { paired = 0; pairWarning = ' Não foi possível salvar um ou mais pareamentos sugeridos; os lançamentos continuam classificados como transferência.'; }
+      }
       if (saveRulesForFuture) {
         const categoryRules = new Map<string, string>();
         prepared.forEach(({ row, index, type }) => { if (type === 'saida' && rowCategories[index] && !rowIgnored[index]) categoryRules.set(row.descricao, rowCategories[index]!); });
@@ -318,7 +364,7 @@ export default function ContasPage() {
         catch { setImportNotice('Os lançamentos foram importados, mas não foi possível salvar uma ou mais regras de categoria para próximos extratos.'); }
       }
           setRows([]); setRowIgnored([]); setShowImport(false); setFormat(null); setParseErrors([]);
-      setImportNotice((current) => current || imported + ' lançamento(s) importado(s). ' + ignored + ' duplicado(s) ignorado(s).');
+      setImportNotice((current) => current || imported + ' lançamento(s) importado(s). ' + ignored + ' duplicado(s) ignorado(s).' + (paired ? ' ' + paired + ' transferência(s) pareada(s).' : '') + pairWarning);
     } catch (error) { setImportError(error instanceof Error ? error.message : 'Não foi possível importar.'); }
     finally { setImporting(false); }
   }
@@ -420,7 +466,7 @@ export default function ContasPage() {
           <div className="acoes"><span className="k"><small>Entradas previstas</small><b>{brl(previewIncome)}</b></span><span className="k"><small>Saídas previstas</small><b>{brl(previewExpenses)}</b></span><span className="k"><small>Possíveis duplicadas</small><b>{rowDuplicate.filter(Boolean).length}</b></span></div>
           <label className="pequeno"><input type="checkbox" checked={saveRulesForFuture} onChange={(e) => setSaveRulesForFuture(e.target.checked)} /> Salvar categorias escolhidas como regras para próximos extratos</label>
           <p className="suave pequeno">{rows.length} lançamento(s) reconhecido(s). Linhas duplicadas aparecem marcadas e ficam desativadas para evitar uma reimportação.</p>
-          <div className="lista" style={{ maxHeight: 420, overflow: 'auto' }}>{rows.slice(0, 150).map((row, index) => <div className="linha" key={row.linha + '-' + index}><span>{row.data}</span><span className="grow"><strong>{row.descricao}</strong>{rowDuplicate[index] && <small className="selo selo-ambar" style={{ display: 'block', width: 'fit-content' }}>Já importada</small>}</span><select aria-label={'Tipo do lançamento ' + row.descricao} value={rowTypes[index] ?? row.tipo} onChange={(e) => setRowTypes((current) => current.map((type, i) => i === index ? e.target.value as TipoMovimentacaoConta : type))}>{Object.entries(TIPO_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{(rowTypes[index] ?? row.tipo) === 'saida' && <select aria-label={'Categoria de ' + row.descricao} value={rowCategories[index] ?? ''} onChange={(e) => setRowCategories((current) => current.map((category, i) => i === index ? e.target.value || undefined : category))}><option value="">Sem categoria</option>{categorias.categoriasAtivas.map((category) => <option key={category.id} value={category.id}>{category.nome}</option>)}</select>}<label className="pequeno"><input type="checkbox" checked={rowIgnored[index] ?? false} disabled={rowDuplicate[index]} onChange={(e) => setRowIgnored((current) => current.map((ignored, i) => i === index ? e.target.checked : ignored))} /> Ignorar</label><b>{brl(row.valor)}</b></div>)}</div>
+          <div className="lista" style={{ maxHeight: 420, overflow: 'auto' }}>{rows.slice(0, 150).map((row, index) => <div className="linha" key={row.linha + '-' + index}><span>{row.data}</span><span className="grow"><strong>{row.descricao}</strong>{rowDuplicate[index] && <small className="selo selo-ambar" style={{ display: 'block', width: 'fit-content' }}>Já importada</small>}</span><select aria-label={'Tipo do lançamento ' + row.descricao} value={rowTypes[index] ?? row.tipo} onChange={(e) => setRowTypes((current) => current.map((type, i) => i === index ? e.target.value as TipoMovimentacaoConta : type))}>{Object.entries(TIPO_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{(rowTypes[index] ?? row.tipo) === 'saida' && <select aria-label={'Categoria de ' + row.descricao} value={rowCategories[index] ?? ''} onChange={(e) => setRowCategories((current) => current.map((category, i) => i === index ? e.target.value || undefined : category))}><option value="">Sem categoria</option>{categorias.categoriasAtivas.map((category) => <option key={category.id} value={category.id}>{category.nome}</option>)}</select>}{(rowTypes[index] ?? row.tipo) === 'pagamento_fatura' && <><select aria-label={'Cartão vinculado a ' + row.descricao} value={rowCards[index] ?? ''} onChange={(e) => setRowCards((current) => current.map((card, i) => i === index ? e.target.value || undefined : card))}><option value="">Vincular cartão (opcional)</option>{cards.itens.map((card) => <option key={card.id} value={card.id}>{card.nome}</option>)}</select><input type="month" aria-label={'Mês da fatura de ' + row.descricao} value={rowInvoiceMonths[index] ?? row.data.slice(0, 7)} onChange={(e) => setRowInvoiceMonths((current) => current.map((month, i) => i === index ? e.target.value : month))} /></>}{(rowTypes[index] ?? row.tipo) === 'transferencia' && (() => { const suggestion = sugerirParTransferencia(row); const suggestedKey = suggestion ? `${suggestion.accountId}/${suggestion.id}` : '__none__'; const value = rowTransferMatches[index] ?? suggestedKey; return suggestion ? <select aria-label={'Possível conta de destino para ' + row.descricao} value={value} onChange={(e) => setRowTransferMatches((current) => ({ ...current, [index]: e.target.value }))}><option value="__none__">Não parear</option><option value={suggestedKey}>Possível par: {suggestion.accountName} · {suggestion.date} · {brl(suggestion.value)}</option></select> : <small className="suave">Transferência sem contraparte compatível.</small>; })()}<label className="pequeno"><input type="checkbox" checked={rowIgnored[index] ?? false} disabled={rowDuplicate[index]} onChange={(e) => setRowIgnored((current) => current.map((ignored, i) => i === index ? e.target.checked : ignored))} /> Ignorar</label><b>{brl(row.valor)}</b></div>)}</div>
           {rows.length > 150 && <p className="aviso aviso-info">A prévia mostra as primeiras 150 linhas; a importação inclui todas as {rows.length} linhas.</p>}
           {importError && <div role="alert" className="aviso aviso-erro">{importError}</div>}
           <button type="button" className="btn" disabled={importing || rows.length === 0} onClick={() => void commitImport()}>{importing ? 'Importando…' : 'Confirmar importação'}</button>

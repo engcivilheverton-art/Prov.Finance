@@ -71,7 +71,7 @@ export function chaveExtrato(input: Pick<LinhaExtrato, 'data' | 'descricao' | 'v
 
 function classificar(descricao: string, valor: number): TipoMovimentacaoConta {
   const text = normalizarCabecalho(descricao);
-  if (/pagamento (de )?fatura|pagto fatura|debito fatura cartao|pagamento cartao/.test(text)) return 'pagamento_fatura';
+  if (/pagamento (de )?fatura|pagto fatura|pagamento cartao|pagto cartao|pgto cartao|debito fatura cartao/.test(text)) return 'pagamento_fatura';
   if (/transferencia|transf entre contas|ted recebida|pix enviado para conta propria|aplicacao resgate/.test(text)) return 'transferencia';
   return valor < 0 ? 'saida' : 'entrada';
 }

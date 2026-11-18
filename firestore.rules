@@ -135,7 +135,9 @@ service cloud.firestore {
         && (!('contaDestinoId' in d) || (d.contaDestinoId is string && d.contaDestinoId.size() <= 128))
         && (!('transferenciaId' in d) || (d.transferenciaId is string && d.transferenciaId.size() <= 128))
         && (!('importacaoId' in d) || (d.importacaoId is string && d.importacaoId.size() <= 128))
-        && (!('chaveDuplicidade' in d) || (d.chaveDuplicidade is string && d.chaveDuplicidade.size() <= 128));
+        && (!('chaveDuplicidade' in d) || (d.chaveDuplicidade is string && d.chaveDuplicidade.size() <= 128))
+        && (!('cartaoId' in d) || (d.cartaoId is string && d.cartaoId.size() <= 128))
+        && (!('ymFatura' in d) || (d.ymFatura is string && d.ymFatura.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')));
     }
     match /users/{uid}/contas/{contaId} {
       allow read: if isOwner(uid);

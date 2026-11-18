@@ -18,9 +18,10 @@ describe('importação local de extratos bancários', () => {
   });
 
   it('classifica pagamento de fatura e guarda direção de transferência', () => {
-    const parsed = parseCsvExtrato('Data,Descrição,Valor\n2026-11-05,Pagamento de fatura cartão,-500.00\n2026-11-06,Transferência para reserva,-100.00');
+    const parsed = parseCsvExtrato('Data,Descrição,Valor\n2026-11-05,Pagamento de fatura cartão,-500.00\n2026-11-06,PGTO CARTAO,-200.00\n2026-11-07,Transferência para reserva,-100.00');
     expect(parsed.linhas[0].tipo).toBe('pagamento_fatura');
-    expect(parsed.linhas[1]).toMatchObject({ tipo: 'transferencia', direcao: 'saida' });
+    expect(parsed.linhas[1].tipo).toBe('pagamento_fatura');
+    expect(parsed.linhas[2]).toMatchObject({ tipo: 'transferencia', direcao: 'saida' });
   });
 
   it('mapeia extrato com colunas separadas de débito e crédito', () => {

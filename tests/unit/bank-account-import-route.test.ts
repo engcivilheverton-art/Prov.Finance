@@ -73,6 +73,16 @@ describe('POST /api/accounts/import', () => {
     expect(mocks.commitFirestoreDocuments).toHaveBeenCalledWith([]);
   });
 
+  it('confere e grava o vínculo opcional de pagamento com cartão e fatura', async () => {
+    const paymentBody = { ...body, items: [{ ...body.items[0], tipo: 'pagamento_fatura', cartaoId: 'card-1', ymFatura: '2026-11' }] };
+    const response = await POST(request(paymentBody));
+    expect(response.status).toBe(200);
+    expect(mocks.getFirestoreDocument).toHaveBeenCalledWith('users/user-1/cartoes/card-1');
+    expect(mocks.commitFirestoreDocuments).toHaveBeenCalledWith([expect.objectContaining({
+      fields: expect.objectContaining({ tipo: 'pagamento_fatura', cartaoId: 'card-1', ymFatura: '2026-11' }),
+    })]);
+  });
+
   it('rejeita valores e IDs inválidos antes de gravar', async () => {
     const invalid = { ...body, items: [{ ...body.items[0], valor: -1 }] };
     const response = await POST(request(invalid));
