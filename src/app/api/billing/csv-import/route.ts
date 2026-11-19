@@ -64,9 +64,10 @@ export async function POST(request: Request) {
     const premium = await confirmarAcessoPremium(user.uid, etapa, user);
     if (!canUseFeature('csvImport', premium)) return NextResponse.json({ code: 'PREMIUM_REQUIRED', error: 'Esta funcionalidade é exclusiva do plano Premium.' }, { status: 403 });
 
-    const body = await etapa('read_request_body', () => request.json().catch(() => ({}))) as { cartaoId?: unknown; ym?: unknown; items?: unknown };
+    const body = await etapa('read_request_body', () => request.json().catch(() => ({}))) as { cartaoId?: unknown; ym?: unknown; items?: unknown; totalFatura?: unknown };
     if (typeof body.cartaoId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.cartaoId)) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
     if (typeof body.ym !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.ym)) return NextResponse.json({ error: 'Mês de fatura inválido.' }, { status: 400 });
+    if (body.totalFatura !== undefined && (typeof body.totalFatura !== 'number' || !Number.isFinite(body.totalFatura) || body.totalFatura < 0 || body.totalFatura > 10000000)) return NextResponse.json({ error: 'Total da fatura inválido.' }, { status: 400 });
     if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 2000) return NextResponse.json({ error: 'Arquivo sem lançamentos ou com lançamentos demais.' }, { status: 400 });
 
     const items: ItemCsv[] = [];
@@ -142,19 +143,42 @@ export async function POST(request: Request) {
       const identified = destino.ym === body.ym
         ? currentItems
         : identificar(destino.itens);
+      if (destino.ym === body.ym) {
+        // Atualiza importações antigas nas quais uma linha da seção programada
+        // havia sido salva como gasto atual, evitando duplicá-la ao reimportar.
+        const jaMigrados = new Set<string>();
+        const migracoes = [] as { path: string; fields: Record<string, unknown> }[];
+        for (const item of currentItems.filter((lancamento) => lancamento.programado)) {
+          if (existingIds.has(item.id)) continue;
+          const anterior = existing.find(({ id, fields }) => !jaMigrados.has(id)
+            && fields.programado !== true && fields.data === item.data && fields.descricao === item.descricao
+            && typeof fields.valor === 'number' && Math.abs(Number(fields.valor) - item.valor) < 0.005);
+          if (!anterior) continue;
+          jaMigrados.add(anterior.id);
+          existingIds.add(item.id);
+          migracoes.push({ path: `${itemsPath}/${anterior.id}`, fields: { programado: true } });
+        }
+        if (migracoes.length) await etapa('firestore_migrate_scheduled_items', () => commitFirestoreDocuments(migracoes));
+      }
       const newItems = identified.filter((item) => !existingIds.has(item.id));
       novos += newItems.length;
       ignorados += identified.length - newItems.length;
       await etapa('firestore_write_items', () => commitFirestoreDocuments(newItems.map(({ id, ...fields }) => ({ path: `${itemsPath}/${id}`, fields: fields as Record<string, unknown>, createOnly: true }))));
       // Soma a coleção efetivamente persistida para manter totais corretos em reimportações.
       const persistedItems = await etapa('firestore_read_saved_items', () => listFirestoreCollection(itemsPath));
-      const total = totalGastos(persistedItems.map((item) => item.fields));
+      const totalGastosImportados = totalGastos(persistedItems.map((item) => item.fields));
+      const totalDeclarado = destino.ym === body.ym && typeof body.totalFatura === 'number'
+        ? body.totalFatura
+        : destino.ym === body.ym && typeof destino.invoice?.totalDeclaradoCsv === 'number'
+          ? destino.invoice.totalDeclaradoCsv
+          : undefined;
+      const total = totalDeclarado ?? totalGastosImportados;
       faturasAtualizadas.push({ ym: destino.ym, quantidade: newItems.length, valor: total });
       if (destino.ym === body.ym) totalAtual = total;
       else futuras.push({ ym: destino.ym, quantidade: newItems.length });
       await etapa('firestore_write_invoice_total', () => commitFirestoreDocuments([{
         path: destino.path,
-        fields: { valor: total, status: destino.invoice?.status ?? 'Pendente', origem: 'csv', atualizadaEm: new Date().toISOString() },
+        fields: { valor: total, ...(totalDeclarado !== undefined ? { totalDeclaradoCsv: totalDeclarado } : {}), status: destino.invoice?.status ?? 'Pendente', origem: 'csv', atualizadaEm: new Date().toISOString() },
       }]));
     }
     return NextResponse.json({ novos, ignorados, total: totalAtual, futuras: futuras.filter((fatura) => fatura.quantidade > 0), faturas: faturasAtualizadas });

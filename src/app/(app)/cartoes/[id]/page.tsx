@@ -165,7 +165,7 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
   async function confirmar() {
     setImportando(true);
     try {
-      const r = await importarItens(uid, cartaoId, ym, res.itens);
+      const r = await importarItens(uid, cartaoId, ym, res.itens, res.totalFatura);
       const resumo = r.faturas.length ? ` Faturas atualizadas: ${r.faturas.map((f) => `${rotuloYm(f.ym)} (${f.quantidade} novo(s), total ${brl(f.valor)})`).join('; ')}.` : '';
       onFim({ tipo: 'ok', texto: `${r.novos} lançamento(s) novo(s), ${r.ignorados} já existente(s).${resumo}` });
     } catch (e) {
@@ -188,6 +188,7 @@ function ImportarCsv({ uid, cartaoId, res, faturas, onFim }: { uid: string; cart
         <b>{NOMES_BANCO[res.banco]}</b> · {res.itens.length} lançamento(s) lido(s) · gastos {brl(totalGastos(itensComRegras))} ({gastos.length})
         {res.itens.some((i) => i.programado) && ` · ${res.itens.filter((i) => i.programado).length} lançamento(s) futuro(s) identificado(s)`}
       </div>
+      {res.totalFatura !== undefined && <div className="aviso aviso-info">Total da fatura informado pelo banco: <b>{brl(res.totalFatura)}</b>. Esse valor inclui saldo anterior e pagamentos; os gastos continuam separados para as análises.</div>}
       {regrasImportacao.carregando ? <div className="aviso aviso-info">Buscando suas regras salvas antes de importar…</div> : <p className="suave pequeno">As regras salvas de ignorar, pagamento ou gasto serão aplicadas também a este arquivo.</p>}
       {res.banco !== 'bradesco' && <div className="aviso aviso-alerta">Leitor automático para {NOMES_BANCO[res.banco]}: confira se o total acima bate com a sua fatura antes de confirmar.</div>}
       <p className="suave pequeno">A data da compra e o número da parcela determinam a fatura: uma compra feita em novembro, por exemplo, começa a ser cobrada na fatura de dezembro. Para lançamentos sem parcela, o mês de referência abaixo será usado como fatura.</p>

@@ -37,6 +37,7 @@ export type Fatura = {
   valor: number;
   status: StatusFatura;
   origem: 'manual' | 'csv';
+  totalDeclaradoCsv?: number;
   atualizadaEm?: string;
 };
 

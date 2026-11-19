@@ -12,6 +12,8 @@ export type ResultadoCsv = {
   banco: BancoId;
   itens: ItemFatura[];
   situacao?: string;
+  /** Total a pagar informado pelo banco, quando o arquivo o declara. */
+  totalFatura?: number;
   /** Data em que o arquivo foi gerado, quando o banco informa. */
   exportadoEm?: { dia: number; mes: number; ano: number };
 };
@@ -96,14 +98,20 @@ function lerBradesco(linhas: string[]): ResultadoCsv {
   const dataLinha = linhas.find((l) => l.startsWith('Data:'))?.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   const cabs = linhas.map((l, i) => (ehCabecalhoBradesco(l) ? i : -1)).filter((i) => i >= 0);
   const itens: ItemFatura[] = [];
+  const inicioProgramados = linhas.findIndex((linha) => semAcento(linha).startsWith('lancamentos programados'));
   // O Bradesco separa a mesma fatura por cartão físico/virtual. Consolidamos
-  // todos os blocos no cartão selecionado pelo usuário, sem marcar os demais
-  // como lançamentos programados.
-  for (const cabecalho of cabs) itens.push(...lerBlocoBradesco(linhas, cabecalho + 1));
+  // os blocos, preservando a seção posterior de lançamentos programados.
+  for (const cabecalho of cabs) {
+    const programado = inicioProgramados >= 0 && cabecalho > inicioProgramados;
+    itens.push(...lerBlocoBradesco(linhas, cabecalho + 1).map((item) => programado ? { ...item, programado: true } : item));
+  }
+  const linhaTotal = linhas.find((linha) => /^Total da fatura em Real\s*:/i.test(linha));
+  const totalFatura = linhaTotal ? lerDecimal(linhaTotal.split(';').at(-1) ?? '') : Number.NaN;
   return {
     banco: 'bradesco',
     itens,
     situacao,
+    ...(Number.isFinite(totalFatura) && totalFatura >= 0 ? { totalFatura: arredondar(totalFatura) } : {}),
     exportadoEm: dataLinha ? { dia: +dataLinha[1], mes: +dataLinha[2], ano: +dataLinha[3] } : undefined,
   };
 }

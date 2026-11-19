@@ -297,10 +297,13 @@ export async function aplicarAcaoLancamentoCsv(uid: string, cartaoId: string, ym
       const amount = Number(fields.valor);
       return fields.programado !== true && fields.ignorado !== true && amount > 0 ? sum + amount : sum;
     }, 0);
+    const totalFinal = typeof invoice.get('totalDeclaradoCsv') === 'number'
+      ? Number(invoice.get('valor'))
+      : Math.round((total + Number.EPSILON) * 100) / 100;
     transaction.set(current.ref, updates, { merge: true });
     transaction.set(ruleRef, { chave, acao: action, atualizadoEm: new Date().toISOString() });
-    transaction.set(invoiceRef, { valor: Math.round((total + Number.EPSILON) * 100) / 100, atualizadaEm: new Date().toISOString() }, { merge: true });
-    return { total: Math.round((total + Number.EPSILON) * 100) / 100 };
+    transaction.set(invoiceRef, { valor: totalFinal, atualizadaEm: new Date().toISOString() }, { merge: true });
+    return { total: totalFinal };
   });
 }
 

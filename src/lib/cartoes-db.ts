@@ -33,7 +33,7 @@ export class ImportacaoTimeoutError extends Error {
 const IMPORT_TIMEOUT_MS = 55_000;
 
 /** A importação é processada pelo backend, que reconfirma a assinatura no Mercado Pago. */
-export async function importarItens(uid: string, cartaoId: string, ym: string, itens: ItemFatura[]) {
+export async function importarItens(uid: string, cartaoId: string, ym: string, itens: ItemFatura[], totalFatura?: number) {
   const user = auth.currentUser;
   if (!user || user.uid !== uid) throw new Error('Sessão inválida. Entre novamente.');
   let idToken: string;
@@ -46,7 +46,7 @@ export async function importarItens(uid: string, cartaoId: string, ym: string, i
     response = await fetch('/api/billing/csv-import', {
       method: 'POST',
       headers: { authorization: `Bearer ${idToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ cartaoId, ym, items: itens }),
+      body: JSON.stringify({ cartaoId, ym, items: itens, ...(totalFatura !== undefined ? { totalFatura } : {}) }),
       signal: controller.signal,
     });
   } catch (error) {

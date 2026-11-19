@@ -34,18 +34,19 @@ describe('Bradesco', () => {
     expect(res.exportadoEm).toEqual({ dia: 8, mes: 10, ano: 2026 });
   });
 
-  it('consolida os blocos físico/virtual e ignora o saldo anterior', () => {
+  it('consolida os blocos, ignora o saldo anterior e separa lançamentos programados', () => {
     const normais = res.itens.filter((i) => !i.programado);
     const prog = res.itens.filter((i) => i.programado);
-    expect(normais).toHaveLength(7);
-    expect(prog).toHaveLength(0);
-    expect(normais).toContainEqual(expect.objectContaining({ data: '20/05', valor: 21.63, descricao: 'COMPRA PARCELADA' }));
+    expect(normais).toHaveLength(5);
+    expect(prog).toHaveLength(2);
+    expect(prog).toContainEqual(expect.objectContaining({ data: '20/05', valor: 21.63, descricao: 'COMPRA PARCELADA', programado: true }));
     expect(normais.find((i) => i.descricao.startsWith('PAGTO'))?.valor).toBe(-1968.09);
     expect(normais.find((i) => i.descricao.startsWith('MERCADO'))).toMatchObject({ descricao: 'MERCADO DOIS', parcela: '3/12' });
+    expect(res.totalFatura).toBe(110.6);
   });
 
-  it('total da fatura = soma dos gastos (sem pagamentos nem programados)', () => {
-    expect(totalGastos(res.itens)).toBe(165.03);
+  it('soma somente gastos atuais e exclui pagamentos e lançamentos programados', () => {
+    expect(totalGastos(res.itens)).toBe(110.6);
   });
 
   it('sugere a fatura do mês seguinte ao da exportação', () => {
